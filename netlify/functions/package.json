@@ -1,0 +1,13 @@
+{
+  "name": "kaay-diunde-functions",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@netlify/functions": "^2.8.2",
+    "@neondatabase/serverless": "^0.10.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "typescript": "~5.8.2"
+  }
+}
