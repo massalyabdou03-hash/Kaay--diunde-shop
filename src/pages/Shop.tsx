@@ -1,138 +1,154 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, Link, useNavigate } from 'react-router-dom';
-import { getProducts } from '../lib/api';
-import { useCart } from '../hooks/useCart';
-import { Product } from '../types';
+import { Link } from 'react-router-dom';
+import { ShoppingCart, Check } from 'lucide-react';
+import { useCart } from '../context/CartContext';
+import { formatCurrency, ProductCategory } from '../constants';
+import type { Product } from '../types';
 
-// ========================================
-// SHOP PAGE
-// ========================================
-
-const Shop: React.FC = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const categoryFilter = searchParams.get('cat');
-  const { addToCart } = useCart();
-  const navigate = useNavigate();
-  
+export default function Shop() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [addedToCart, setAddedToCart] = useState<Record<string, boolean>>({});
+  const { addToCart } = useCart();
 
   useEffect(() => {
-    const loadProducts = async () => {
-      setLoading(true);
-      setError(null);
-      
-      try {
-        const data = await getProducts(categoryFilter || undefined);
-        setProducts(data);
-      } catch (err) {
-        setError('Impossible de charger les produits');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
+    fetchProducts();
+  }, []);
 
-    loadProducts();
-  }, [categoryFilter]);
-
-  const handleBuyNow = (product: Product) => {
-    addToCart(product, 1);
-    navigate('/checkout');
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch('/.netlify/functions/get-products');
+      const data = await response.json();
+      setProducts(data);
+    } catch (error) {
+      console.error('Erreur lors du chargement des produits:', error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleAddToCart = (product: Product) => {
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: product.image,
+      quantity: 1,
+    });
+
+    // Animation de confirmation
+    setAddedToCart({ ...addedToCart, [product.id]: true });
+    setTimeout(() => {
+      setAddedToCart({ ...addedToCart, [product.id]: false });
+    }, 2000);
+  };
+
+  const filteredProducts = selectedCategory === 'all'
+    ? products
+    : products.filter(p => p.category === selectedCategory);
+
+  const categories = [
+    { id: 'all', label: 'Tous les produits' },
+    { id: ProductCategory.ELECTRONICS, label: 'Électronique' },
+    { id: ProductCategory.FASHION, label: 'Mode' },
+    { id: ProductCategory.ACCESSORIES, label: 'Accessoires' },
+  ];
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-20 text-center">
-        <div className="inline-block w-12 h-12 border-4 border-orange-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="mt-4 text-gray-600">Chargement des produits...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="container mx-auto px-4 py-20 text-center">
-        <p className="text-red-600 mb-4">{error}</p>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="bg-orange-600 text-white px-6 py-2 rounded-lg"
-        >
-          Réessayer
-        </button>
+      <div className="container">
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+          <p>Chargement des produits...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Notre Boutique</h1>
-      
-      {/* Category Tabs */}
-      <div className="flex gap-2 mb-8 overflow-x-auto pb-2 no-scrollbar">
-        <button 
-          onClick={() => setSearchParams({})}
-          className={`px-6 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${!categoryFilter ? 'bg-orange-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
-        >
-          Tous
-        </button>
-        <button 
-          onClick={() => setSearchParams({ cat: 'electronics' })}
-          className={`px-6 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${categoryFilter === 'electronics' ? 'bg-orange-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
-        >
-          Téléphones
-        </button>
-        <button 
-          onClick={() => setSearchParams({ cat: 'shoes' })}
-          className={`px-6 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${categoryFilter === 'shoes' ? 'bg-orange-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
-        >
-          Chaussures
-        </button>
-        <button 
-          onClick={() => setSearchParams({ cat: 'daily' })}
-          className={`px-6 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${categoryFilter === 'daily' ? 'bg-orange-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}
-        >
-          Quotidien
-        </button>
+    <div className="container shop-page">
+      <div className="shop-header">
+        <h1 className="page-title">Notre Boutique</h1>
+        <p className="page-subtitle">Découvrez nos produits aux meilleurs prix</p>
       </div>
 
-      {/* Product Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {products.map(product => (
-          <div key={product.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden group">
-            <Link to={`/product/${product.id}`} className="block relative">
-              <img src={product.image} alt={product.name} className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300" />
-              {product.old_price && (
-                <span className="absolute top-4 left-4 bg-orange-600 text-white text-[10px] font-bold px-2 py-1 rounded">PROMO</span>
+      {/* Filtres de catégories */}
+      <div className="category-filters">
+        {categories.map(cat => (
+          <button
+            key={cat.id}
+            onClick={() => setSelectedCategory(cat.id)}
+            className={`category-filter ${selectedCategory === cat.id ? 'active' : ''}`}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Grille de produits */}
+      <div className="products-grid">
+        {filteredProducts.map((product) => (
+          <div key={product.id} className="product-card">
+            <Link to={`/product/${product.id}`} className="product-image-link">
+              <img
+                src={product.image}
+                alt={product.name}
+                className="product-image"
+                loading="lazy"
+              />
+              {product.discount && (
+                <span className="discount-badge">-{product.discount}%</span>
+              )}
+              {product.stock < 5 && product.stock > 0 && (
+                <span className="stock-badge">Plus que {product.stock} en stock</span>
+              )}
+              {product.stock === 0 && (
+                <span className="out-of-stock-badge">Rupture de stock</span>
               )}
             </Link>
-            <div className="p-4">
+
+            <div className="product-info">
               <Link to={`/product/${product.id}`}>
-                <h3 className="font-semibold text-gray-900 mb-1">{product.name}</h3>
+                <h3 className="product-name">{product.name}</h3>
               </Link>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-xl font-bold text-orange-600">{product.price.toLocaleString()} F</span>
-                {product.old_price && <span className="text-gray-400 text-xs line-through">{product.old_price.toLocaleString()} F</span>}
+              
+              <div className="product-pricing">
+                <span className="product-price">{formatCurrency(product.price)}</span>
+                {product.originalPrice && (
+                  <span className="product-original-price">
+                    {formatCurrency(product.originalPrice)}
+                  </span>
+                )}
               </div>
-              <button 
-                onClick={() => handleBuyNow(product)}
-                className="w-full bg-blue-900 text-white py-3 rounded-xl font-bold text-sm active:scale-95 transition-transform"
+
+              <button
+                onClick={() => handleAddToCart(product)}
+                disabled={product.stock === 0}
+                className={`btn-add-cart ${addedToCart[product.id] ? 'added' : ''}`}
               >
-                Acheter Maintenant
+                {addedToCart[product.id] ? (
+                  <>
+                    <Check size={20} />
+                    <span>Ajouté au panier</span>
+                  </>
+                ) : (
+                  <>
+                    <ShoppingCart size={20} />
+                    <span>{product.stock === 0 ? 'Rupture de stock' : 'Ajouter au panier'}</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
         ))}
       </div>
 
-      {products.length === 0 && (
-        <div className="text-center py-20">
-          <p className="text-gray-500">Aucun produit trouvé dans cette catégorie.</p>
+      {filteredProducts.length === 0 && (
+        <div className="empty-results">
+          <p>Aucun produit trouvé dans cette catégorie</p>
         </div>
       )}
     </div>
   );
-};
-
-export default Shop;
+}

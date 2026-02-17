@@ -1,263 +1,306 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCart } from '../hooks/useCart';
-import { createOrder } from '../lib/api';
-import { DeliveryZone } from '../types';
+import { useCart } from '../context/CartContext';
+import { Package, MapPin, Phone, User, MessageCircle, Trash2 } from 'lucide-react';
+import { WHATSAPP_NUMBER, formatCurrency, DeliveryZone } from '../constants';
 
-// ========================================
-// CHECKOUT PAGE
-// ========================================
+const deliveryFees: Record<string, number> = {
+  [DeliveryZone.DAKAR]: 2000,
+  [DeliveryZone.PIKINE]: 2500,
+  [DeliveryZone.GUEDIAWAYE]: 2500,
+  [DeliveryZone.RUFISQUE]: 3000,
+  [DeliveryZone.THIES]: 5000,
+  [DeliveryZone.MBOUR]: 7000,
+  [DeliveryZone.SAINT_LOUIS]: 10000,
+  [DeliveryZone.KAOLACK]: 8000,
+  [DeliveryZone.ZIGUINCHOR]: 15000,
+  [DeliveryZone.OTHER]: 5000,
+};
 
-const Checkout: React.FC = () => {
-  const { cart, totalPrice, clearCart, removeFromCart, updateQuantity } = useCart();
+export default function Checkout() {
+  const { cart, removeFromCart, updateQuantity, clearCart } = useCart();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
+  
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
-    city: DeliveryZone.DAKAR,
     address: '',
-    paymentMethod: 'cod'
+    zone: DeliveryZone.DAKAR,
+    notes: '',
   });
 
-  const deliveryFees: Record<string, number> = {
-    [DeliveryZone.DAKAR]: 2000,
-    [DeliveryZone.PIKINE]: 2500,
-    [DeliveryZone.RUFISQUE]: 3000,
-    [DeliveryZone.THIES]: 4000,
-    [DeliveryZone.ST_LOUIS]: 5000,
-    [DeliveryZone.ZIGUINCHOR]: 7000,
-    [DeliveryZone.AUTRE]: 6000,
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const deliveryFee = deliveryFees[formData.zone] || 2000;
+  const total = subtotal + deliveryFee;
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
   };
 
-  const currentFee = deliveryFees[formData.city] || 0;
-  const finalTotal = totalPrice + currentFee;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (cart.length === 0) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Préparer les données de commande
-      const orderData = {
-        name: formData.name,
-        phone: formData.phone,
-        city: formData.city,
-        address: formData.address,
-        paymentMethod: formData.paymentMethod,
-        items: cart.map(item => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          image: item.image
-        })),
-        subtotal: totalPrice,
-        deliveryFee: currentFee,
-        total: finalTotal
-      };
-
-      // Envoyer la commande au backend
-      await createOrder(orderData);
-
-      // Vider le panier et rediriger
-      clearCart();
-      navigate('/confirmation');
-      
-    } catch (err) {
-      console.error('Erreur lors de la commande:', err);
-      setError(err instanceof Error ? err.message : 'Erreur lors de la commande. Veuillez réessayer.');
-    } finally {
-      setLoading(false);
+  const handleWhatsAppOrder = () => {
+    if (!formData.name || !formData.phone || !formData.address) {
+      alert('Veuillez remplir tous les champs obligatoires');
+      return;
     }
+
+    if (cart.length === 0) {
+      alert('Votre panier est vide');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    // Créer le message WhatsApp
+    const orderDetails = cart.map(item => 
+      `• ${item.name} x${item.quantity} - ${formatCurrency(item.price * item.quantity)}`
+    ).join('\n');
+
+    const message = `🛍️ *NOUVELLE COMMANDE - KAAY DIUNDE*
+
+👤 *Client:* ${formData.name}
+📱 *Téléphone:* ${formData.phone}
+📍 *Adresse:* ${formData.address}
+🗺️ *Zone:* ${formData.zone}
+
+*PRODUITS:*
+${orderDetails}
+
+💰 *Sous-total:* ${formatCurrency(subtotal)}
+🚚 *Livraison:* ${formatCurrency(deliveryFee)}
+💳 *TOTAL:* ${formatCurrency(total)}
+
+${formData.notes ? `📝 *Notes:* ${formData.notes}` : ''}
+
+_Paiement à la livraison_`;
+
+    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+    
+    // Ouvrir WhatsApp
+    window.open(whatsappUrl, '_blank');
+
+    // Envoyer aussi au backend pour enregistrement
+    fetch('/.netlify/functions/create-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerName: formData.name,
+        customerPhone: formData.phone,
+        deliveryAddress: formData.address,
+        deliveryZone: formData.zone,
+        items: cart.map(item => ({
+          productId: item.id,
+          productName: item.name,
+          quantity: item.quantity,
+          price: item.price,
+        })),
+        subtotal,
+        deliveryFee,
+        total,
+        notes: formData.notes,
+      }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        console.log('Commande enregistrée:', data);
+        clearCart();
+        setIsSubmitting(false);
+        
+        // Rediriger vers la page d'accueil après 2 secondes
+        setTimeout(() => {
+          navigate('/');
+        }, 2000);
+      })
+      .catch(error => {
+        console.error('Erreur lors de l\'enregistrement:', error);
+        setIsSubmitting(false);
+      });
   };
 
   if (cart.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-20 text-center">
-        <h2 className="text-2xl font-bold mb-4">Votre panier est vide</h2>
-        <button onClick={() => navigate('/shop')} className="bg-orange-600 text-white px-8 py-3 rounded-xl font-bold">
-          Aller à la boutique
-        </button>
+      <div className="container">
+        <div className="empty-cart">
+          <Package size={64} className="empty-cart-icon" />
+          <h2>Votre panier est vide</h2>
+          <p>Découvrez nos produits et ajoutez-les à votre panier</p>
+          <button onClick={() => navigate('/shop')} className="btn-primary">
+            Voir la boutique
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-8">Finaliser la commande</h1>
+    <div className="container checkout-page">
+      <h1 className="page-title">Finaliser la commande</h1>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg mb-6">
-          {error}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-        {/* Order Summary */}
-        <div className="order-last lg:order-first">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
-            <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
-              <span className="bg-orange-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">1</span>
-              Résumé de la commande
+      <div className="checkout-grid">
+        {/* Formulaire */}
+        <div className="checkout-form">
+          <div className="card">
+            <h2 className="section-title">
+              <User size={24} />
+              Informations de livraison
             </h2>
-            <div className="space-y-4 mb-6">
-              {cart.map(item => (
-                <div key={item.id} className="flex justify-between items-center pb-4 border-b border-gray-50">
-                  <div className="flex items-center gap-4">
-                    <img src={item.image} className="w-16 h-16 object-cover rounded-lg" alt={item.name} />
-                    <div>
-                      <h4 className="font-bold text-gray-900 text-sm">{item.name}</h4>
-                      <p className="text-xs text-gray-500">Prix unit: {item.price.toLocaleString()} F</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="text-xs px-2 py-1 bg-gray-100 rounded">-</button>
-                        <span className="text-xs font-bold">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="text-xs px-2 py-1 bg-gray-100 rounded">+</button>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-sm">{(item.price * item.quantity).toLocaleString()} F</p>
-                    <button onClick={() => removeFromCart(item.id)} className="text-[10px] text-red-500 font-bold uppercase mt-2">Supprimer</button>
-                  </div>
-                </div>
-              ))}
+
+            <div className="form-group">
+              <label htmlFor="name">Nom complet *</label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Ex: Amadou Diallo"
+                required
+              />
             </div>
 
-            <div className="space-y-2 border-t border-gray-100 pt-4">
-              <div className="flex justify-between text-gray-600">
-                <span>Sous-total</span>
-                <span>{totalPrice.toLocaleString()} FCFA</span>
-              </div>
-              <div className="flex justify-between text-gray-600">
-                <span>Frais de livraison ({formData.city})</span>
-                <span>{currentFee.toLocaleString()} FCFA</span>
-              </div>
-              <div className="flex justify-between text-xl font-bold text-gray-900 pt-2 border-t border-gray-200 mt-2">
-                <span>Total à payer</span>
-                <span className="text-orange-600">{finalTotal.toLocaleString()} FCFA</span>
-              </div>
+            <div className="form-group">
+              <label htmlFor="phone">Téléphone *</label>
+              <input
+                type="tel"
+                id="phone"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="Ex: 77 123 45 67"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="address">Adresse complète *</label>
+              <input
+                type="text"
+                id="address"
+                name="address"
+                value={formData.address}
+                onChange={handleChange}
+                placeholder="Ex: Sacré-Coeur 3, Villa 123"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="zone">Zone de livraison *</label>
+              <select
+                id="zone"
+                name="zone"
+                value={formData.zone}
+                onChange={handleChange}
+                required
+              >
+                <option value={DeliveryZone.DAKAR}>Dakar - {formatCurrency(2000)}</option>
+                <option value={DeliveryZone.PIKINE}>Pikine - {formatCurrency(2500)}</option>
+                <option value={DeliveryZone.GUEDIAWAYE}>Guédiawaye - {formatCurrency(2500)}</option>
+                <option value={DeliveryZone.RUFISQUE}>Rufisque - {formatCurrency(3000)}</option>
+                <option value={DeliveryZone.THIES}>Thiès - {formatCurrency(5000)}</option>
+                <option value={DeliveryZone.MBOUR}>Mbour - {formatCurrency(7000)}</option>
+                <option value={DeliveryZone.SAINT_LOUIS}>Saint-Louis - {formatCurrency(10000)}</option>
+                <option value={DeliveryZone.KAOLACK}>Kaolack - {formatCurrency(8000)}</option>
+                <option value={DeliveryZone.ZIGUINCHOR}>Ziguinchor - {formatCurrency(15000)}</option>
+                <option value={DeliveryZone.OTHER}>Autre région - {formatCurrency(5000)}</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="notes">Notes (optionnel)</label>
+              <textarea
+                id="notes"
+                name="notes"
+                value={formData.notes}
+                onChange={handleChange}
+                placeholder="Instructions spéciales pour la livraison..."
+                rows={3}
+              />
             </div>
           </div>
         </div>
 
-        {/* Form */}
-        <div>
-          <form onSubmit={handleSubmit} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
-              <span className="bg-orange-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">2</span>
-              Informations de Livraison
+        {/* Résumé de la commande */}
+        <div className="checkout-summary">
+          <div className="card">
+            <h2 className="section-title">
+              <Package size={24} />
+              Votre commande
             </h2>
-            
-            <div className="space-y-4 mb-8">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Nom Complet</label>
-                <input 
-                  required
-                  type="text" 
-                  value={formData.name}
-                  onChange={e => setFormData({...formData, name: e.target.value})}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-600/20"
-                  placeholder="Ex: Moussa Diop"
-                />
-              </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Téléphone (WhatsApp)</label>
-                <input 
-                  required
-                  type="tel" 
-                  value={formData.phone}
-                  onChange={e => setFormData({...formData, phone: e.target.value})}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-600/20"
-                  placeholder="Ex: 771234567"
-                />
-              </div>
+            <div className="cart-items">
+              {cart.map((item) => (
+                <div key={item.id} className="cart-item">
+                  <img src={item.image} alt={item.name} className="cart-item-image" />
+                  <div className="cart-item-details">
+                    <h4>{item.name}</h4>
+                    <p className="cart-item-price">{formatCurrency(item.price)}</p>
+                    <div className="quantity-controls">
+                      <button
+                        onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                        className="quantity-btn"
+                      >
+                        -
+                      </button>
+                      <span>{item.quantity}</span>
+                      <button
+                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        className="quantity-btn"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => removeFromCart(item.id)}
+                    className="remove-btn"
+                    title="Retirer"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              ))}
+            </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Ville / Région</label>
-                <select 
-                  value={formData.city}
-                  onChange={e => setFormData({...formData, city: e.target.value as DeliveryZone})}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-600/20"
-                >
-                  {Object.values(DeliveryZone).map(zone => (
-                    <option key={zone} value={zone}>{zone}</option>
-                  ))}
-                </select>
+            <div className="order-summary">
+              <div className="summary-row">
+                <span>Sous-total</span>
+                <span>{formatCurrency(subtotal)}</span>
               </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Adresse Précise</label>
-                <textarea 
-                  required
-                  rows={2}
-                  value={formData.address}
-                  onChange={e => setFormData({...formData, address: e.target.value})}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-600/20"
-                  placeholder="Quartier, Rue, près de..."
-                ></textarea>
+              <div className="summary-row">
+                <span>Livraison ({formData.zone})</span>
+                <span>{formatCurrency(deliveryFee)}</span>
+              </div>
+              <div className="summary-row total">
+                <span>Total</span>
+                <span>{formatCurrency(total)}</span>
               </div>
             </div>
 
-            <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
-              <span className="bg-orange-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">3</span>
-              Mode de Paiement
-            </h2>
-
-            <div className="grid grid-cols-1 gap-3 mb-8">
-              <label className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.paymentMethod === 'cod' ? 'border-orange-600 bg-orange-50' : 'border-gray-100 hover:border-gray-200'}`}>
-                <div className="flex items-center gap-3">
-                  <input type="radio" name="payment" checked={formData.paymentMethod === 'cod'} onChange={() => setFormData({...formData, paymentMethod: 'cod'})} className="hidden" />
-                  <span className="text-2xl">💵</span>
-                  <div>
-                    <p className="font-bold text-sm">Paiement à la livraison</p>
-                    <p className="text-[10px] text-gray-500">Payez en espèces à la réception</p>
-                  </div>
-                </div>
-                {formData.paymentMethod === 'cod' && <div className="w-4 h-4 rounded-full bg-orange-600"></div>}
-              </label>
-
-              <label className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.paymentMethod === 'wave' ? 'border-blue-600 bg-blue-50' : 'border-gray-100 hover:border-gray-200'}`}>
-                <div className="flex items-center gap-3">
-                  <input type="radio" name="payment" checked={formData.paymentMethod === 'wave'} onChange={() => setFormData({...formData, paymentMethod: 'wave'})} className="hidden" />
-                  <span className="text-2xl">🌊</span>
-                  <div>
-                    <p className="font-bold text-sm text-blue-900">Wave / Orange Money</p>
-                    <p className="text-[10px] text-gray-500">Simple et Rapide</p>
-                  </div>
-                </div>
-                {formData.paymentMethod === 'wave' && <div className="w-4 h-4 rounded-full bg-blue-600"></div>}
-              </label>
+            <div className="payment-info">
+              <p>💳 Paiement à la livraison</p>
+              <p>📱 Wave / Orange Money acceptés</p>
             </div>
 
-            <button 
-              type="submit"
-              disabled={loading}
-              className="w-full bg-orange-600 text-white py-5 rounded-2xl font-bold text-xl hover:bg-orange-700 active:scale-95 transition-all shadow-lg shadow-orange-600/30 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            <button
+              onClick={handleWhatsAppOrder}
+              disabled={isSubmitting}
+              className="btn-whatsapp"
             >
-              {loading ? (
-                <>
-                  <span className="w-6 h-6 border-4 border-white border-t-transparent rounded-full animate-spin"></span>
-                  <span>Envoi en cours...</span>
-                </>
-              ) : (
-                <>CONFIRMER LA COMMANDE</>
-              )}
+              <MessageCircle size={20} />
+              {isSubmitting ? 'Envoi en cours...' : 'Confirmer par WhatsApp'}
             </button>
-            <p className="text-center text-gray-400 text-[10px] mt-4 uppercase font-bold tracking-widest">
-              Garantie Kaay Diunde • Retour Gratuit
+
+            <p className="checkout-note">
+              ✅ Votre commande sera envoyée via WhatsApp pour confirmation
             </p>
-          </form>
+          </div>
         </div>
       </div>
     </div>
   );
-};
-
-export default Checkout;
+}
