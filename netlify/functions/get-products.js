@@ -1,40 +1,38 @@
-const { Client } = require('pg');
+const { Pool } = require('pg');
 
-exports.handler = async (event) => {
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
+
+exports.handler = async function(event, context) {
+  // CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS'
   };
 
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
 
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
-  });
-
   try {
-    await client.connect();
-
-    const query = 'SELECT * FROM products ORDER BY created_at DESC';
-    const result = await client.query(query);
+    const result = await pool.query(
+      'SELECT * FROM products ORDER BY created_at DESC'
+    );
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify(result.rows),
+      body: JSON.stringify(result.rows)
     };
   } catch (error) {
-    console.error('Error fetching products:', error);
+    console.error('Database error:', error);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Failed to fetch products', details: error.message }),
+      body: JSON.stringify({ error: 'Failed to fetch products' })
     };
-  } finally {
-    await client.end();
   }
 };

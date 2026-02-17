@@ -1,124 +1,97 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Plus, Trash2, Edit, Package, Shield } from 'lucide-react';
+import { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { ShoppingCart, Shield, Home as HomeIcon, Store, X } from 'lucide-react';
+import { CartProvider, useCart } from './context/CartContext';
 import Home from './pages/Home';
 import Shop from './pages/Shop';
 import ProductDetail from './pages/ProductDetail';
 import Checkout from './pages/Checkout';
 import AdminDashboard from './pages/AdminDashboard';
-import { CartProvider, useCart } from './context/CartContext';
 import './App.css';
 
-function CartButton() {
-  const { cart } = useCart();
-  const navigate = useNavigate();
-  const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+function AppContent() {
+  const { items, totalItems } = useCart();
+  const [showCart, setShowCart] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [isAdmin, setIsAdmin] = useState(() => {
+    return sessionStorage.getItem('isAdmin') === 'true';
+  });
 
-  return (
-    <button
-      onClick={() => navigate('/checkout')}
-      className="cart-button"
-      aria-label="Panier"
-    >
-      <ShoppingCart size={24} />
-      {itemCount > 0 && (
-        <span className="cart-badge">{itemCount}</span>
-      )}
-    </button>
-  );
-}
-
-function AdminButton() {
-  const navigate = useNavigate();
-  const [showAdminPrompt, setShowAdminPrompt] = useState(false);
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-
-  const handleAdminAccess = () => {
-    // Mot de passe par défaut : admin2024
-    // À changer dans les variables d'environnement en production
-    const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'admin2024';
+  const handleAdminLogin = () => {
+    const envPassword = import.meta.env.VITE_ADMIN_PASSWORD || 
+                       import.meta.env.VITE_ADMIN_SECRET || 
+                       'admin2024';
     
-    if (password === adminPassword) {
-      sessionStorage.setItem('adminAuth', 'true');
-      navigate('/admin');
-      setShowAdminPrompt(false);
-      setPassword('');
-      setError('');
+    if (adminPassword === envPassword) {
+      setIsAdmin(true);
+      sessionStorage.setItem('isAdmin', 'true');
+      setShowAdminLogin(false);
+      setAdminPassword('');
+      window.location.href = '/admin';
     } else {
-      setError('Mot de passe incorrect');
+      alert('Mot de passe incorrect');
     }
   };
 
-  return (
-    <>
-      <button
-        onClick={() => setShowAdminPrompt(true)}
-        className="admin-button"
-        title="Accès Admin"
-      >
-        <Shield size={20} />
-        <span>Admin</span>
-      </button>
+  const handleAdminLogout = () => {
+    setIsAdmin(false);
+    sessionStorage.removeItem('isAdmin');
+    window.location.href = '/';
+  };
 
-      {showAdminPrompt && (
-        <div className="modal-overlay" onClick={() => setShowAdminPrompt(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>Accès Admin</h3>
-            <input
-              type="password"
-              placeholder="Mot de passe"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleAdminAccess()}
-              className="admin-input"
-              autoFocus
-            />
-            {error && <p className="error-message">{error}</p>}
-            <div className="modal-actions">
-              <button onClick={handleAdminAccess} className="btn-primary">
-                Se connecter
+  return (
+    <Router>
+      <div className="app">
+        <header className="header">
+          <div className="container header-content">
+            <Link to="/" className="logo">
+              <Store size={32} />
+              <span>Kaay Diunde</span>
+            </Link>
+
+            <nav className="nav">
+              <Link to="/" className="nav-link">
+                <HomeIcon size={20} />
+                <span>Accueil</span>
+              </Link>
+              <Link to="/shop" className="nav-link">
+                <Store size={20} />
+                <span>Boutique</span>
+              </Link>
+              
+              {isAdmin ? (
+                <>
+                  <Link to="/admin" className="nav-link admin-link">
+                    <Shield size={20} />
+                    <span>Admin</span>
+                  </Link>
+                  <button onClick={handleAdminLogout} className="btn-logout">
+                    Déconnexion
+                  </button>
+                </>
+              ) : (
+                <button 
+                  onClick={() => setShowAdminLogin(true)}
+                  className="btn-admin"
+                >
+                  <Shield size={20} />
+                </button>
+              )}
+
+              <button 
+                className="cart-button"
+                onClick={() => setShowCart(true)}
+              >
+                <ShoppingCart size={24} />
+                {totalItems > 0 && (
+                  <span className="cart-badge">{totalItems}</span>
+                )}
               </button>
-              <button onClick={() => {
-                setShowAdminPrompt(false);
-                setPassword('');
-                setError('');
-              }} className="btn-secondary">
-                Annuler
-              </button>
-            </div>
+            </nav>
           </div>
-        </div>
-      )}
-    </>
-  );
-}
+        </header>
 
-function Header() {
-  return (
-    <header className="header">
-      <div className="container">
-        <Link to="/" className="logo">
-          <span className="logo-kaay">Kaay</span>
-          <span className="logo-diunde">Diunde</span>
-        </Link>
-        
-        <nav className="nav">
-          <Link to="/" className="nav-link">Accueil</Link>
-          <Link to="/shop" className="nav-link">Boutique</Link>
-          <AdminButton />
-          <CartButton />
-        </nav>
-      </div>
-    </header>
-  );
-}
-
-function AppContent() {
-  return (
-    <div className="app">
-      <Header />
-      <main className="main-content">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/shop" element={<Shop />} />
@@ -126,24 +99,78 @@ function AppContent() {
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/admin" element={<AdminDashboard />} />
         </Routes>
-      </main>
-      <footer className="footer">
-        <div className="container">
-          <p>© 2024 Kaay Diunde - Boutique en ligne au Sénégal 🇸🇳</p>
-          <p>Paiement à la livraison • Livraison rapide dans tout le Sénégal</p>
-        </div>
-      </footer>
-    </div>
+
+        {showCart && (
+          <div className="modal-overlay" onClick={() => setShowCart(false)}>
+            <div className="cart-modal" onClick={e => e.stopPropagation()}>
+              <div className="cart-header">
+                <h2>Panier ({totalItems} articles)</h2>
+                <button onClick={() => setShowCart(false)}>
+                  <X size={24} />
+                </button>
+              </div>
+              
+              <div className="cart-items">
+                {items.length === 0 ? (
+                  <p className="empty-cart">Votre panier est vide</p>
+                ) : (
+                  items.map(item => (
+                    <div key={item.id} className="cart-item">
+                      <img src={item.image} alt={item.name} />
+                      <div className="cart-item-info">
+                        <h4>{item.name}</h4>
+                        <p>{item.price.toLocaleString()} FCFA</p>
+                      </div>
+                      <div className="cart-item-actions">
+                        <span>Qté: {item.quantity}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {items.length > 0 && (
+                <div className="cart-footer">
+                  <Link 
+                    to="/checkout" 
+                    className="btn-checkout"
+                    onClick={() => setShowCart(false)}
+                  >
+                    Commander
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {showAdminLogin && (
+          <div className="modal-overlay" onClick={() => setShowAdminLogin(false)}>
+            <div className="admin-login-modal" onClick={e => e.stopPropagation()}>
+              <h2>Connexion Admin</h2>
+              <input
+                type="password"
+                placeholder="Mot de passe"
+                value={adminPassword}
+                onChange={e => setAdminPassword(e.target.value)}
+                onKeyPress={e => e.key === 'Enter' && handleAdminLogin()}
+              />
+              <button onClick={handleAdminLogin} className="btn-login">
+                Se connecter
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </Router>
   );
 }
 
 function App() {
   return (
-    <Router>
-      <CartProvider>
-        <AppContent />
-      </CartProvider>
-    </Router>
+    <CartProvider>
+      <AppContent />
+    </CartProvider>
   );
 }
 

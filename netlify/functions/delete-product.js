@@ -1,10 +1,15 @@
-const { Client } = require('pg');
+const { Pool } = require('pg');
 
-exports.handler = async (event) => {
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
+
+exports.handler = async function(event, context) {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS'
   };
 
   if (event.httpMethod === 'OPTIONS') {
@@ -15,44 +20,37 @@ exports.handler = async (event) => {
     return {
       statusCode: 405,
       headers,
-      body: JSON.stringify({ error: 'Method not allowed' }),
+      body: JSON.stringify({ error: 'Method not allowed' })
     };
   }
 
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
-  });
-
   try {
-    await client.connect();
-
     const { id } = JSON.parse(event.body);
 
-    const query = 'DELETE FROM products WHERE id = $1 RETURNING *';
-    const result = await client.query(query, [id]);
+    const result = await pool.query(
+      'DELETE FROM products WHERE id = $1 RETURNING id',
+      [id]
+    );
 
     if (result.rows.length === 0) {
       return {
         statusCode: 404,
         headers,
-        body: JSON.stringify({ error: 'Product not found' }),
+        body: JSON.stringify({ error: 'Product not found' })
       };
     }
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ message: 'Product deleted successfully', product: result.rows[0] }),
+      body: JSON.stringify({ message: 'Product deleted successfully' })
     };
   } catch (error) {
-    console.error('Error deleting product:', error);
+    console.error('Database error:', error);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Failed to delete product', details: error.message }),
+      body: JSON.stringify({ error: 'Failed to delete product' })
     };
-  } finally {
-    await client.end();
   }
 };
