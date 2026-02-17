@@ -1,0 +1,8 @@
+{
+  "name": "netlify-functions",
+  "version": "1.0.0",
+  "description": "Netlify Functions for Kaay Diunde Shop",
+  "dependencies": {
+    "pg": "^8.11.3"
+  }
+}
