@@ -4,127 +4,91 @@ import { ShoppingCart, Check } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { Product, ProductCategory } from '../types';
 
+const CATEGORIES: Array<ProductCategory | 'all'> = ['all','electronics','fashion','accessories','home','sports','books'];
+const LABELS: Record<ProductCategory | 'all', string> = {
+  all: 'Tous', electronics: 'Électronique', fashion: 'Mode',
+  accessories: 'Accessoires', home: 'Maison', sports: 'Sport', books: 'Livres'
+};
+
 export default function Shop() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState<ProductCategory | 'all'>('all');
-  const [addedProducts, setAddedProducts] = useState<Set<string>>(new Set());
+  const [products, setProducts]         = useState<Product[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [category, setCategory]         = useState<ProductCategory | 'all'>('all');
+  const [added, setAdded]               = useState<Set<string>>(new Set());
   const { addToCart } = useCart();
 
   useEffect(() => {
     fetch('/.netlify/functions/get-products')
-      .then(res => res.json())
-      .then(data => {
-        setProducts(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('Error loading products:', err);
-        setLoading(false);
-      });
+      .then(r => r.json())
+      .then(data => { setProducts(data); setLoading(false); })
+      .catch(err => { console.error('Erreur chargement produits:', err); setLoading(false); });
   }, []);
 
-  const handleAddToCart = (product: Product) => {
+  const handleAdd = (product: Product) => {
     addToCart(product);
-    setAddedProducts(prev => new Set(prev).add(product.id));
+    setAdded(prev => new Set(prev).add(product.id));
     setTimeout(() => {
-      setAddedProducts(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(product.id);
-        return newSet;
-      });
+      setAdded(prev => { const s = new Set(prev); s.delete(product.id); return s; });
     }, 2000);
   };
 
-  const filteredProducts = selectedCategory === 'all' 
-    ? products 
-    : products.filter(p => p.category === selectedCategory);
+  const filtered = category === 'all' ? products : products.filter(p => p.category === category);
 
-  const categories: Array<ProductCategory | 'all'> = [
-    'all',
-    'electronics',
-    'fashion',
-    'accessories',
-    'home',
-    'sports',
-    'books'
-  ];
-
-  const categoryLabels: Record<ProductCategory | 'all', string> = {
-    all: 'Tous',
-    electronics: 'Électronique',
-    fashion: 'Mode',
-    accessories: 'Accessoires',
-    home: 'Maison',
-    sports: 'Sport',
-    books: 'Livres'
-  };
-
-  if (loading) {
-    return (
-      <div className="container">
-        <div className="loading">Chargement...</div>
-      </div>
-    );
-  }
+  if (loading) return <div className="container"><div className="loading">Chargement des produits…</div></div>;
 
   return (
     <div className="shop-page">
       <div className="container">
-        <h1>Notre Boutique</h1>
-        
+        <div className="shop-header">
+          <h1>Notre Boutique</h1>
+        </div>
+
         <div className="filters">
-          {categories.map(cat => (
+          {CATEGORIES.map(cat => (
             <button
               key={cat}
-              className={`filter-btn ${selectedCategory === cat ? 'active' : ''}`}
-              onClick={() => setSelectedCategory(cat)}
+              className={`filter-btn ${category === cat ? 'active' : ''}`}
+              onClick={() => setCategory(cat)}
             >
-              {categoryLabels[cat]}
+              {LABELS[cat]}
             </button>
           ))}
         </div>
 
         <div className="products-grid">
-          {filteredProducts.map(product => (
+          {filtered.map(product => (
             <div key={product.id} className="product-card">
               <Link to={`/product/${product.id}`}>
-                <img src={product.image} alt={product.name} />
+                <img src={product.image} alt={product.name} loading="lazy" />
               </Link>
-              
-              {product.discount && (
-                <span className="discount-badge">-{product.discount}%</span>
+
+              {product.old_price && product.old_price > product.price && (
+                <span className="discount-badge">
+                  -{Math.round((1 - product.price / product.old_price) * 100)}%
+                </span>
               )}
 
               <div className="product-info">
                 <Link to={`/product/${product.id}`}>
                   <h3>{product.name}</h3>
                 </Link>
-                
+
                 <div className="product-price">
-                  <span className="price">{product.price.toLocaleString()} FCFA</span>
-                  {product.originalPrice && (
-                    <span className="original-price">
-                      {product.originalPrice.toLocaleString()} FCFA
-                    </span>
+                  <span className="price">{product.price.toLocaleString('fr-SN')} FCFA</span>
+                  {product.old_price && product.old_price > product.price && (
+                    <span className="original-price">{product.old_price.toLocaleString('fr-SN')} FCFA</span>
                   )}
                 </div>
 
                 <button
-                  onClick={() => handleAddToCart(product)}
-                  className={`btn-add-cart ${addedProducts.has(product.id) ? 'added' : ''}`}
+                  onClick={() => handleAdd(product)}
+                  className={`btn-add-cart ${added.has(product.id) ? 'added' : ''}`}
                   disabled={product.stock === 0}
                 >
-                  {addedProducts.has(product.id) ? (
-                    <>
-                      <Check size={20} />
-                      <span>Ajouté !</span>
-                    </>
+                  {added.has(product.id) ? (
+                    <><Check size={18} /><span>Ajouté !</span></>
                   ) : (
-                    <>
-                      <ShoppingCart size={20} />
-                      <span>{product.stock === 0 ? 'Rupture de stock' : 'Ajouter au panier'}</span>
-                    </>
+                    <><ShoppingCart size={18} /><span>{product.stock === 0 ? 'Rupture de stock' : 'Ajouter au panier'}</span></>
                   )}
                 </button>
               </div>
@@ -132,8 +96,8 @@ export default function Shop() {
           ))}
         </div>
 
-        {filteredProducts.length === 0 && (
-          <p className="no-products">Aucun produit trouvé dans cette catégorie.</p>
+        {filtered.length === 0 && !loading && (
+          <p className="no-products">Aucun produit dans cette catégorie.</p>
         )}
       </div>
     </div>

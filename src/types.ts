@@ -5,11 +5,11 @@ export interface Product {
   name: string;
   description: string;
   price: number;
-  originalPrice?: number;
+  old_price?: number;       // Correspond à old_price en DB
   category: ProductCategory;
   image: string;
   stock: number;
-  discount?: number;
+  featured?: boolean;
 }
 
 export interface CartItem extends Product {
@@ -29,7 +29,7 @@ export interface OrderFormData {
   customerPhone: string;
   deliveryAddress: string;
   deliveryZone: DeliveryZone;
-  notes?: string;
+  paymentMethod?: string;
 }
 
 export interface Order extends OrderFormData {
