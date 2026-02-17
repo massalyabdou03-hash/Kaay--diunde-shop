@@ -5,7 +5,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-exports.handler = async function(event, context) {
+exports.handler = async function(event) {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -16,20 +16,12 @@ exports.handler = async function(event, context) {
     return { statusCode: 200, headers, body: '' };
   }
 
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ error: 'Method not allowed' })
-    };
-  }
-
   try {
     const product = JSON.parse(event.body);
 
     const result = await pool.query(
-      `INSERT INTO products (id, name, description, price, original_price, category, image, stock, discount)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO produits (id, name, description, price, old_price, category, image, stock)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
        RETURNING *`,
       [
         product.id,
@@ -39,8 +31,7 @@ exports.handler = async function(event, context) {
         product.originalPrice || null,
         product.category,
         product.image,
-        product.stock,
-        product.discount || null
+        product.stock
       ]
     );
 
@@ -49,12 +40,13 @@ exports.handler = async function(event, context) {
       headers,
       body: JSON.stringify(result.rows[0])
     };
+
   } catch (error) {
-    console.error('Database error:', error);
+    console.error(error);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Failed to add product' })
+      body: JSON.stringify({ error: error.message })
     };
   }
 };
