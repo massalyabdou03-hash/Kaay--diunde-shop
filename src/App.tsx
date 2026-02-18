@@ -13,7 +13,9 @@ import './App.css';
 function Logo() {
   return (
     <Link to="/" className="logo">
-      <div className="logo-icon">🏪</div>
+      <div className="logo-icon" style={{ background: 'none', boxShadow: 'none' }}>
+        <ShoppingCart size={32} color="#F97316" style={{ marginRight: '8px' }} />
+      </div>
       <div className="logo-text">
         <span className="kaay">Kaay</span>
         <span className="diunde"> Diunde</span>
