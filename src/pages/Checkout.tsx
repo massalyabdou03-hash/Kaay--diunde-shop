@@ -58,7 +58,6 @@ export default function Checkout() {
 
     setSubmitting(true);
     try {
-      // Enregistrer la commande en base
       await fetch('/.netlify/functions/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -76,9 +75,18 @@ export default function Checkout() {
       });
     } catch (err) {
       console.error('Erreur enregistrement commande:', err);
-      // On continue quand même vers WhatsApp
     } finally {
       setSubmitting(false);
+
+      // 🔥 Événement Google Analytics
+      if (typeof window !== "undefined" && typeof window.gtag === "function") {
+        window.gtag("event", "click_whatsapp", {
+          event_category: "conversion",
+          event_label: "Commande WhatsApp",
+          value: total,
+        });
+      }
+
       clearCart();
       window.open(waUrl, '_blank');
       navigate('/');
@@ -102,7 +110,6 @@ export default function Checkout() {
         <h1>Finaliser la commande</h1>
 
         <div className="checkout-grid">
-          {/* Articles */}
           <div className="checkout-items">
             <h2>Votre panier ({items.length} article{items.length > 1 ? 's' : ''})</h2>
             {items.map(item => (
@@ -123,7 +130,6 @@ export default function Checkout() {
             ))}
           </div>
 
-          {/* Formulaire */}
           <div className="checkout-form">
             <h2>Informations de livraison</h2>
 
@@ -168,7 +174,6 @@ export default function Checkout() {
               </select>
             </div>
 
-            {/* Récapitulatif */}
             <div className="order-summary">
               <div className="summary-row"><span>Sous-total</span><span>{subtotal.toLocaleString('fr-SN')} FCFA</span></div>
               <div className="summary-row"><span>Livraison</span><span>{deliveryFee.toLocaleString('fr-SN')} FCFA</span></div>
