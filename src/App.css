@@ -971,3 +971,48 @@ tr:hover td { background: var(--gray-50); }
   .form-row { grid-template-columns: 1fr; }
   .checkout-item { grid-template-columns: 60px 1fr; }
 }
+/* ─── AMÉLIORATIONS MOBILE SANS CASSER LE DESIGN ───────────────── */
+
+/* Ajustement header sur mobile */
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+/* Padding container plus adapté mobile */
+@media (max-width: 600px) {
+  .container {
+    padding: 0 16px;
+  }
+}
+
+/* Sécurité grille produits très petit écran */
+@media (max-width: 400px) {
+  .products-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Modals plus adaptées petit écran */
+@media (max-width: 500px) {
+  .cart-modal,
+  .admin-login-modal,
+  .product-modal {
+    padding: 18px;
+    border-radius: 14px;
+  }
+}
+
+/* Taille minimum tactile recommandée mobile */
+button {
+  min-height: 44px;
+}
+
