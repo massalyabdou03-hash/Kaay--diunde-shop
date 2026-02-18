@@ -286,6 +286,67 @@ body {
 }
 .feature-card p { color: var(--gray-400); font-size: .9rem; line-height: 1.6; }
 
+/* ─── FEATURED PRODUCTS (page d'accueil) ────────────── */
+.featured-section {
+  padding: 72px 0;
+  background: white;
+}
+
+.featured-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.featured-star {
+  color: var(--orange);
+  fill: var(--orange);
+}
+
+.featured-card {
+  border: 2px solid transparent;
+  background: linear-gradient(white, white) padding-box,
+              linear-gradient(135deg, var(--orange), var(--blue)) border-box;
+}
+
+.featured-badge {
+  position: absolute;
+  top: 12px; right: 12px;
+  background: var(--orange);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-size: .7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.featured-cta {
+  text-align: center;
+  margin-top: 40px;
+}
+
+.btn-see-all {
+  display: inline-block;
+  color: var(--blue);
+  font-weight: 700;
+  font-size: 1rem;
+  text-decoration: none;
+  padding: 12px 28px;
+  border: 2px solid var(--blue);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+.btn-see-all:hover {
+  background: var(--blue);
+  color: white;
+  transform: translateY(-2px);
+}
+
 .cta {
   background: linear-gradient(135deg, var(--orange) 0%, #dc2626 100%);
   padding: 64px 0;
