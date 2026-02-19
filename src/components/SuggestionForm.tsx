@@ -13,7 +13,7 @@ export default function SuggestionForm() {
     const formData = new FormData(form);
 
     try {
-      await fetch('https://formsubmit.co/ajax/kaaydiunde@gmail.com', {
+      await fetch('https://formsubmit.co/ajax/massalyabdou03@gmail.com', {
         method: 'POST',
         headers: { 'Accept': 'application/json' },
         body: formData,
