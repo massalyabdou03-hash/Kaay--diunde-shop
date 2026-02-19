@@ -1986,3 +1986,176 @@ button {
   }
 }
 
+/* ─── SECTION SUGGESTION / FORMULAIRE ────────────── */
+.suggestion-section {
+  padding: 72px 0;
+  background: white;
+}
+
+.suggestion-wrapper {
+  max-width: 640px;
+  margin: 0 auto;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  padding: 40px 36px;
+  box-shadow: var(--shadow-sm);
+}
+
+.suggestion-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.suggestion-icon-wrap {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, var(--orange), var(--blue));
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  margin: 0 auto 16px;
+  box-shadow: 0 4px 16px rgba(249,115,22,.25);
+}
+
+.suggestion-header h2 {
+  font-family: 'Sora', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 8px;
+  letter-spacing: -.3px;
+}
+
+.suggestion-subtitle {
+  color: var(--gray-400);
+  font-size: .95rem;
+  line-height: 1.5;
+}
+
+/* Formulaire */
+.suggestion-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.suggestion-form-group {
+  margin-bottom: 14px;
+}
+
+.suggestion-form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--gray-600);
+}
+
+.suggestion-form-group .optional {
+  font-weight: 400;
+  color: var(--gray-400);
+  font-size: .8rem;
+}
+
+.suggestion-form-group .required {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.suggestion-form-group input,
+.suggestion-form-group textarea {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  font-size: .9rem;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--navy);
+  background: white;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  resize: vertical;
+}
+
+.suggestion-form-group input:focus,
+.suggestion-form-group textarea:focus {
+  outline: none;
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px rgba(249,115,22,.1);
+}
+
+.suggestion-form-group input::placeholder,
+.suggestion-form-group textarea::placeholder {
+  color: var(--gray-400);
+}
+
+.suggestion-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  background: var(--orange);
+  color: white;
+  border: none;
+  padding: 13px 24px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 1rem;
+  transition: all var(--transition);
+  box-shadow: 0 4px 16px rgba(249,115,22,.3);
+}
+
+.suggestion-btn:hover {
+  background: var(--orange-dk);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(249,115,22,.4);
+}
+
+.suggestion-btn:disabled {
+  opacity: .7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Message de succès */
+.suggestion-success {
+  text-align: center;
+  padding: 40px 20px;
+  animation: fadeInError .4s ease-out;
+}
+
+.suggestion-success-icon {
+  font-size: 2.5rem;
+  margin-bottom: 16px;
+}
+
+.suggestion-success p {
+  font-family: 'Sora', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--success);
+}
+
+/* Responsive suggestion */
+@media (max-width: 600px) {
+  .suggestion-section {
+    padding: 48px 0;
+  }
+  .suggestion-wrapper {
+    padding: 28px 20px;
+    border-radius: var(--radius);
+  }
+  .suggestion-header h2 {
+    font-size: 1.3rem;
+  }
+  .suggestion-form-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
