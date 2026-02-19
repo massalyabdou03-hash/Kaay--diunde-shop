@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { ShoppingCart, Check } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { ShoppingCart, Check, ShoppingBag, RotateCcw } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { Product, ProductCategory } from '../types';
 
@@ -10,12 +10,28 @@ const LABELS: Record<ProductCategory | 'all', string> = {
   accessories: 'Accessoires', home: 'Maison', sports: 'Sport', books: 'Livres'
 };
 
+type SortOption = 'default' | 'price_asc' | 'price_desc' | 'newest';
+const SORT_LABELS: Record<SortOption, string> = {
+  default: 'Par défaut',
+  price_asc: 'Prix croissant',
+  price_desc: 'Prix décroissant',
+  newest: 'Plus récents',
+};
+
 export default function Shop() {
   const [products, setProducts]         = useState<Product[]>([]);
   const [loading, setLoading]           = useState(true);
   const [category, setCategory]         = useState<ProductCategory | 'all'>('all');
   const [added, setAdded]               = useState<Set<string>>(new Set());
+  const [sortBy, setSortBy]             = useState<SortOption>('default');
+  const [priceMin, setPriceMin]         = useState('');
+  const [priceMax, setPriceMax]         = useState('');
   const { addToCart } = useCart();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Lecture du paramètre de recherche depuis l'URL
+  const searchQuery = searchParams.get('q') || '';
 
   useEffect(() => {
     fetch('/.netlify/functions/get-products')
@@ -32,7 +48,66 @@ export default function Shop() {
     }, 2000);
   };
 
-  const filtered = category === 'all' ? products : products.filter(p => p.category === category);
+  const handleOrder = (product: Product) => {
+    addToCart(product);
+    navigate('/checkout');
+  };
+
+  const resetFilters = () => {
+    setCategory('all');
+    setSortBy('default');
+    setPriceMin('');
+    setPriceMax('');
+  };
+
+  // Filtrage et tri combinés
+  const filtered = useMemo(() => {
+    let result = [...products];
+
+    // Filtre par recherche texte
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(p => p.name.toLowerCase().includes(q));
+    }
+
+    // Filtre par catégorie
+    if (category !== 'all') {
+      result = result.filter(p => p.category === category);
+    }
+
+    // Filtre par prix min
+    if (priceMin) {
+      const min = Number(priceMin);
+      if (!isNaN(min)) result = result.filter(p => p.price >= min);
+    }
+
+    // Filtre par prix max
+    if (priceMax) {
+      const max = Number(priceMax);
+      if (!isNaN(max)) result = result.filter(p => p.price <= max);
+    }
+
+    // Tri
+    switch (sortBy) {
+      case 'price_asc':
+        result.sort((a, b) => a.price - b.price);
+        break;
+      case 'price_desc':
+        result.sort((a, b) => b.price - a.price);
+        break;
+      case 'newest':
+        result.sort((a, b) => {
+          const da = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const db = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return db - da;
+        });
+        break;
+    }
+
+    return result;
+  }, [products, searchQuery, category, priceMin, priceMax, sortBy]);
+
+  const hasActiveFilters = category !== 'all' || sortBy !== 'default' || priceMin || priceMax;
 
   if (loading) return <div className="container"><div className="loading">Chargement des produits…</div></div>;
 
@@ -41,8 +116,14 @@ export default function Shop() {
       <div className="container">
         <div className="shop-header">
           <h1>Notre Boutique</h1>
+          {searchQuery && (
+            <p style={{ color: 'var(--gray-400)', marginTop: '4px', fontSize: '.9rem' }}>
+              Résultats pour « {searchQuery} » — {filtered.length} produit{filtered.length !== 1 ? 's' : ''}
+            </p>
+          )}
         </div>
 
+        {/* Filtres par catégorie */}
         <div className="filters">
           {CATEGORIES.map(cat => (
             <button
@@ -53,6 +134,46 @@ export default function Shop() {
               {LABELS[cat]}
             </button>
           ))}
+        </div>
+
+        {/* Filtres avancés : prix et tri */}
+        <div className="shop-filters-bar">
+          <div className="filter-group">
+            <label>Prix</label>
+            <div className="filter-group-price">
+              <input
+                type="number"
+                placeholder="Min"
+                value={priceMin}
+                onChange={e => setPriceMin(e.target.value)}
+                min="0"
+              />
+              <span>—</span>
+              <input
+                type="number"
+                placeholder="Max"
+                value={priceMax}
+                onChange={e => setPriceMax(e.target.value)}
+                min="0"
+              />
+            </div>
+          </div>
+
+          <div className="filter-group">
+            <label>Trier par</label>
+            <select value={sortBy} onChange={e => setSortBy(e.target.value as SortOption)}>
+              {(Object.keys(SORT_LABELS) as SortOption[]).map(key => (
+                <option key={key} value={key}>{SORT_LABELS[key]}</option>
+              ))}
+            </select>
+          </div>
+
+          {hasActiveFilters && (
+            <button className="btn-reset-filters" onClick={resetFilters}>
+              <RotateCcw size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+              Réinitialiser
+            </button>
+          )}
         </div>
 
         <div className="products-grid">
@@ -91,13 +212,22 @@ export default function Shop() {
                     <><ShoppingCart size={18} /><span>{product.stock === 0 ? 'Rupture de stock' : 'Ajouter au panier'}</span></>
                   )}
                 </button>
+
+                <button
+                  onClick={() => handleOrder(product)}
+                  className="btn-order"
+                  disabled={product.stock === 0}
+                >
+                  <ShoppingBag size={18} />
+                  <span>Commander</span>
+                </button>
               </div>
             </div>
           ))}
         </div>
 
         {filtered.length === 0 && !loading && (
-          <p className="no-products">Aucun produit dans cette catégorie.</p>
+          <p className="no-products">Aucun produit trouvé.</p>
         )}
       </div>
     </div>
