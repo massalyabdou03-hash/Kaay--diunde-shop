@@ -10,6 +10,7 @@ export interface Product {
   image: string;
   stock: number;
   featured?: boolean;
+  created_at?: string;      // Date de création pour le tri
 }
 
 export interface CartItem extends Product {
