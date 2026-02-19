@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingBag, ShoppingCart, Check, Truck, Shield, MessageCircle, Star } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { Product } from '../types';
+import SuggestionForm from '../components/SuggestionForm';
 
 /* Données des témoignages clients */
 const testimonials = [
@@ -221,6 +222,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Section formulaire de suggestions */}
+      <SuggestionForm />
 
       <section className="cta">
         <div className="container">
