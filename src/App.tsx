@@ -9,6 +9,7 @@ import ProductDetail from './pages/ProductDetail';
 import Checkout from './pages/Checkout';
 import AdminDashboard from './pages/AdminDashboard';
 import SmartSearch from './components/SmartSearch';
+import FloatingAd from './components/FloatingAd';
 import './App.css';
 
 // ─── ScrollToTop : remet le scroll en haut à chaque changement de page ──
@@ -185,6 +186,9 @@ function AppContent() {
             </div>
           </div>
         )}
+
+        {/* ── Publicité flottante configurable ── */}
+        <FloatingAd />
 
         {/* ── Bouton flottant appel téléphonique ── */}
         <a href="tel:+221762548030" className="floating-phone" aria-label="Appeler">
