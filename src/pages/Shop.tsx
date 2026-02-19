@@ -6,10 +6,11 @@ import { Product, ProductCategory } from '../types';
 import { smartSearch, getSimilarProducts } from '../utils/searchEngine';
 import { WHATSAPP_NUMBER } from '../constants';
 
-const CATEGORIES: Array<ProductCategory | 'all'> = ['all','electronics','fashion','accessories','home','sports','books'];
+const CATEGORIES: Array<ProductCategory | 'all'> = ['all','electronics','fashion','accessories','home','sports','books','ramadan'];
 const LABELS: Record<ProductCategory | 'all', string> = {
   all: 'Tous', electronics: 'Électronique', fashion: 'Mode',
-  accessories: 'Accessoires', home: 'Maison', sports: 'Sport', books: 'Livres'
+  accessories: 'Accessoires', home: 'Maison', sports: 'Sport', books: 'Livres',
+  ramadan: '🕌 Ramadan'
 };
 
 type SortOption = 'default' | 'price_asc' | 'price_desc' | 'newest';
