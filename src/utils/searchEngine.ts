@@ -38,6 +38,10 @@ const SYNONYMES: Record<string, string[]> = {
   'promotion': ['promo', 'solde', 'réduction', 'discount', 'offre'],
   'pas cher': ['bon prix', 'abordable', 'économique', 'budget'],
   'cher': ['premium', 'luxe', 'haut de gamme'],
+  'ramadan': ['iftar', 'prière', 'jeûne', 'dattes', 'oud'],
+  'dattes': ['dates', 'datte', 'ramadan'],
+  'hijab': ['voile', 'foulard', 'hijab tendance'],
+  'parfum': ['oud', 'fragrance', 'senteur'],
 };
 
 // ─── Corrections orthographiques courantes ────────────────────────
@@ -96,6 +100,7 @@ const CATEGORY_LABELS: Record<ProductCategory, string[]> = {
   'home': ['maison', 'home', 'intérieur', 'décoration', 'deco', 'déco'],
   'sports': ['sport', 'sports', 'fitness', 'gym'],
   'books': ['livre', 'livres', 'book', 'bouquin', 'roman', 'lecture'],
+  'ramadan': ['ramadan', 'iftar', 'prière', 'priere', 'hijab', 'dattes', 'oud', 'lanterne'],
 };
 
 const CATEGORY_DISPLAY: Record<ProductCategory, string> = {
@@ -105,6 +110,7 @@ const CATEGORY_DISPLAY: Record<ProductCategory, string> = {
   'home': 'Maison',
   'sports': 'Sport',
   'books': 'Livres',
+  'ramadan': 'Ramadan',
 };
 
 // ─── Distance de Levenshtein pour la correction floue ────────────
