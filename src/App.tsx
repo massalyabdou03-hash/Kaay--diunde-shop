@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Shield, Store, X, Phone, Search } from 'lucide-react';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { ShoppingCart, Shield, Store, X, Phone } from 'lucide-react';
 import { CartProvider, useCart } from './context/CartContext';
 import { useEffect } from 'react';
 import Home from './pages/Home';
@@ -8,6 +8,7 @@ import Shop from './pages/Shop';
 import ProductDetail from './pages/ProductDetail';
 import Checkout from './pages/Checkout';
 import AdminDashboard from './pages/AdminDashboard';
+import SmartSearch from './components/SmartSearch';
 import './App.css';
 
 // ─── ScrollToTop : remet le scroll en haut à chaque changement de page ──
@@ -31,45 +32,6 @@ function Logo() {
         <span className="diunde"> Diunde</span>
       </div>
     </Link>
-  );
-}
-
-// ─── SearchBar : barre de recherche dans le header ──
-function SearchBar() {
-  const [query, setQuery] = useState('');
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const handleSearch = (value: string) => {
-    setQuery(value);
-    // Redirige vers /shop avec le paramètre de recherche
-    const params = new URLSearchParams(location.search);
-    if (value.trim()) {
-      params.set('q', value.trim());
-    } else {
-      params.delete('q');
-    }
-    navigate(`/shop?${params.toString()}`, { replace: true });
-  };
-
-  // Synchroniser avec l'URL quand on arrive sur une page
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const q = params.get('q') || '';
-    setQuery(q);
-  }, [location.pathname]);
-
-  return (
-    <div className="search-bar-wrapper">
-      <Search size={18} className="search-bar-icon" />
-      <input
-        type="text"
-        className="search-bar-input"
-        placeholder="Rechercher un produit..."
-        value={query}
-        onChange={e => handleSearch(e.target.value)}
-      />
-    </div>
   );
 }
 
@@ -114,7 +76,7 @@ function AppContent() {
         <header className="header">
           <div className="container header-content">
             <Logo />
-            <SearchBar />
+            <SmartSearch />
 
             <nav className="nav">
               <Link to="/" className="nav-link">

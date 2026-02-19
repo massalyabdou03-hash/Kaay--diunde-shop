@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ShoppingCart, Check, ShoppingBag, RotateCcw } from 'lucide-react';
+import { ShoppingCart, Check, ShoppingBag, RotateCcw, SearchX, Package, Truck, MessageCircle } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { Product, ProductCategory } from '../types';
+import { smartSearch, getSimilarProducts } from '../utils/searchEngine';
+import { WHATSAPP_NUMBER } from '../constants';
 
 const CATEGORIES: Array<ProductCategory | 'all'> = ['all','electronics','fashion','accessories','home','sports','books'];
 const LABELS: Record<ProductCategory | 'all', string> = {
@@ -26,12 +28,29 @@ export default function Shop() {
   const [sortBy, setSortBy]             = useState<SortOption>('default');
   const [priceMin, setPriceMin]         = useState('');
   const [priceMax, setPriceMax]         = useState('');
+  const [inStockOnly, setInStockOnly]   = useState(false);
+  const [fastDelivery, setFastDelivery] = useState(false);
+  const [priceSlider, setPriceSlider]   = useState(0);
   const { addToCart } = useCart();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // Lecture du paramètre de recherche depuis l'URL
+  // Lecture des paramètres de recherche depuis l'URL
   const searchQuery = searchParams.get('q') || '';
+  const catFromUrl = searchParams.get('cat') || '';
+
+  // Appliquer la catégorie depuis l'URL
+  useEffect(() => {
+    if (catFromUrl && CATEGORIES.includes(catFromUrl as ProductCategory)) {
+      setCategory(catFromUrl as ProductCategory);
+    }
+  }, [catFromUrl]);
+
+  // Calculer le prix max des produits pour le slider
+  const maxPrice = useMemo(() => {
+    if (products.length === 0) return 500000;
+    return Math.max(...products.map(p => p.price));
+  }, [products]);
 
   useEffect(() => {
     fetch('/.netlify/functions/get-products')
@@ -58,33 +77,54 @@ export default function Shop() {
     setSortBy('default');
     setPriceMin('');
     setPriceMax('');
+    setInStockOnly(false);
+    setFastDelivery(false);
+    setPriceSlider(0);
   };
 
-  // Filtrage et tri combinés
-  const filtered = useMemo(() => {
-    let result = [...products];
+  // Recherche intelligente + filtrage combinés
+  const { filtered, correctedQuery, matchedCategory } = useMemo(() => {
+    let result: Product[];
+    let correctedQuery: string | null = null;
+    let matchedCategory: ProductCategory | null = null;
 
-    // Filtre par recherche texte
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(p => p.name.toLowerCase().includes(q));
-    }
+      // Utiliser le moteur de recherche intelligent
+      const searchResult = smartSearch(searchQuery, products, {
+        inStockOnly,
+        priceMin: priceMin ? Number(priceMin) : (priceSlider > 0 ? priceSlider : undefined),
+        priceMax: priceMax ? Number(priceMax) : undefined,
+        category: category !== 'all' ? category : undefined,
+      });
+      result = searchResult.results;
+      correctedQuery = searchResult.correctedQuery;
+      matchedCategory = searchResult.matchedCategory;
+    } else {
+      result = [...products];
 
-    // Filtre par catégorie
-    if (category !== 'all') {
-      result = result.filter(p => p.category === category);
-    }
+      // Filtre par catégorie
+      if (category !== 'all') {
+        result = result.filter(p => p.category === category);
+      }
 
-    // Filtre par prix min
-    if (priceMin) {
-      const min = Number(priceMin);
-      if (!isNaN(min)) result = result.filter(p => p.price >= min);
-    }
+      // Filtre en stock
+      if (inStockOnly) {
+        result = result.filter(p => p.stock > 0);
+      }
 
-    // Filtre par prix max
-    if (priceMax) {
-      const max = Number(priceMax);
-      if (!isNaN(max)) result = result.filter(p => p.price <= max);
+      // Filtre par prix min
+      if (priceMin) {
+        const min = Number(priceMin);
+        if (!isNaN(min)) result = result.filter(p => p.price >= min);
+      } else if (priceSlider > 0) {
+        result = result.filter(p => p.price >= priceSlider);
+      }
+
+      // Filtre par prix max
+      if (priceMax) {
+        const max = Number(priceMax);
+        if (!isNaN(max)) result = result.filter(p => p.price <= max);
+      }
     }
 
     // Tri
@@ -104,10 +144,32 @@ export default function Shop() {
         break;
     }
 
-    return result;
-  }, [products, searchQuery, category, priceMin, priceMax, sortBy]);
+    return { filtered: result, correctedQuery, matchedCategory };
+  }, [products, searchQuery, category, priceMin, priceMax, priceSlider, sortBy, inStockOnly]);
 
-  const hasActiveFilters = category !== 'all' || sortBy !== 'default' || priceMin || priceMax;
+  // Produits similaires en cas de résultat vide
+  const similarProducts = useMemo(() => {
+    if (filtered.length === 0 && searchQuery.trim() && products.length > 0) {
+      return getSimilarProducts(searchQuery, products);
+    }
+    return [];
+  }, [filtered.length, searchQuery, products]);
+
+  const hasActiveFilters = category !== 'all' || sortBy !== 'default' || priceMin || priceMax || inStockOnly || fastDelivery || priceSlider > 0;
+
+  // Appliquer la correction
+  const applyCorrection = () => {
+    if (correctedQuery) {
+      const params = new URLSearchParams(searchParams);
+      params.set('q', correctedQuery);
+      setSearchParams(params, { replace: true });
+    }
+  };
+
+  // Lien WhatsApp pour commander
+  const whatsappSearchUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+    `Bonjour, je cherche "${searchQuery}" sur votre boutique mais je n'ai pas trouvé. Pouvez-vous m'aider ?`
+  )}`;
 
   if (loading) return <div className="container"><div className="loading">Chargement des produits…</div></div>;
 
@@ -122,6 +184,43 @@ export default function Shop() {
             </p>
           )}
         </div>
+
+        {/* Barre de correction orthographique */}
+        {correctedQuery && filtered.length > 0 && (
+          <div className="search-correction-bar">
+            <span>Résultats pour</span>
+            <strong onClick={applyCorrection}>{correctedQuery}</strong>
+            <span>au lieu de « {searchQuery} »</span>
+          </div>
+        )}
+
+        {/* Filtres rapides après recherche */}
+        {searchQuery && filtered.length > 0 && (
+          <div className="search-filters-row">
+            <button
+              className={`search-filter-chip ${inStockOnly ? 'active' : ''}`}
+              onClick={() => setInStockOnly(!inStockOnly)}
+            >
+              <Package size={14} />
+              En stock
+            </button>
+            <button
+              className={`search-filter-chip ${fastDelivery ? 'active' : ''}`}
+              onClick={() => setFastDelivery(!fastDelivery)}
+            >
+              <Truck size={14} />
+              Livraison rapide
+            </button>
+            {matchedCategory && category === 'all' && (
+              <button
+                className="search-filter-chip"
+                onClick={() => setCategory(matchedCategory!)}
+              >
+                {LABELS[matchedCategory]}
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Filtres par catégorie */}
         <div className="filters">
@@ -138,6 +237,25 @@ export default function Shop() {
 
         {/* Filtres avancés : prix et tri */}
         <div className="shop-filters-bar">
+          {/* Slider prix min */}
+          <div className="filter-group" style={{ flex: 1, minWidth: '200px' }}>
+            <label>Prix minimum</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="range"
+                min="0"
+                max={maxPrice}
+                step={1000}
+                value={priceSlider}
+                onChange={e => { setPriceSlider(Number(e.target.value)); setPriceMin(''); }}
+                style={{ flex: 1, minHeight: 'auto' }}
+              />
+              <span style={{ fontSize: '.82rem', fontWeight: 700, color: 'var(--orange)', whiteSpace: 'nowrap', minWidth: '80px', textAlign: 'right' }}>
+                {priceSlider > 0 ? `${priceSlider.toLocaleString('fr-SN')} F` : 'Tout'}
+              </span>
+            </div>
+          </div>
+
           <div className="filter-group">
             <label>Prix</label>
             <div className="filter-group-price">
@@ -145,7 +263,7 @@ export default function Shop() {
                 type="number"
                 placeholder="Min"
                 value={priceMin}
-                onChange={e => setPriceMin(e.target.value)}
+                onChange={e => { setPriceMin(e.target.value); setPriceSlider(0); }}
                 min="0"
               />
               <span>—</span>
@@ -168,6 +286,18 @@ export default function Shop() {
             </select>
           </div>
 
+          <div className="filter-group">
+            <label>Disponibilité</label>
+            <button
+              className={`search-filter-chip ${inStockOnly ? 'active' : ''}`}
+              onClick={() => setInStockOnly(!inStockOnly)}
+              style={{ marginTop: '0' }}
+            >
+              <Package size={14} />
+              En stock
+            </button>
+          </div>
+
           {hasActiveFilters && (
             <button className="btn-reset-filters" onClick={resetFilters}>
               <RotateCcw size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} />
@@ -176,58 +306,156 @@ export default function Shop() {
           )}
         </div>
 
-        <div className="products-grid">
-          {filtered.map(product => (
-            <div key={product.id} className="product-card">
-              <Link to={`/product/${product.id}`}>
-                <img src={product.image} alt={product.name} loading="lazy" />
-              </Link>
-
-              {product.old_price && product.old_price > product.price && (
-                <span className="discount-badge">
-                  -{Math.round((1 - product.price / product.old_price) * 100)}%
-                </span>
-              )}
-
-              <div className="product-info">
+        {/* Grille de produits */}
+        {filtered.length > 0 && (
+          <div className="products-grid">
+            {filtered.map(product => (
+              <div key={product.id} className="product-card">
                 <Link to={`/product/${product.id}`}>
-                  <h3>{product.name}</h3>
+                  <img src={product.image} alt={product.name} loading="lazy" />
                 </Link>
 
-                <div className="product-price">
-                  <span className="price">{product.price.toLocaleString('fr-SN')} FCFA</span>
-                  {product.old_price && product.old_price > product.price && (
-                    <span className="original-price">{product.old_price.toLocaleString('fr-SN')} FCFA</span>
-                  )}
+                {product.old_price && product.old_price > product.price && (
+                  <span className="discount-badge">
+                    -{Math.round((1 - product.price / product.old_price) * 100)}%
+                  </span>
+                )}
+
+                {product.stock === 0 && (
+                  <span className="discount-badge" style={{ background: 'var(--gray-600)', left: 'auto', right: '12px' }}>
+                    Rupture
+                  </span>
+                )}
+
+                <div className="product-info">
+                  <Link to={`/product/${product.id}`}>
+                    <h3>{product.name}</h3>
+                  </Link>
+
+                  <div className="product-price">
+                    <span className="price">{product.price.toLocaleString('fr-SN')} FCFA</span>
+                    {product.old_price && product.old_price > product.price && (
+                      <span className="original-price">{product.old_price.toLocaleString('fr-SN')} FCFA</span>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => handleAdd(product)}
+                    className={`btn-add-cart ${added.has(product.id) ? 'added' : ''}`}
+                    disabled={product.stock === 0}
+                  >
+                    {added.has(product.id) ? (
+                      <><Check size={18} /><span>Ajouté !</span></>
+                    ) : (
+                      <><ShoppingCart size={18} /><span>{product.stock === 0 ? 'Rupture de stock' : 'Ajouter au panier'}</span></>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => handleOrder(product)}
+                    className="btn-order"
+                    disabled={product.stock === 0}
+                  >
+                    <ShoppingBag size={18} />
+                    <span>Commander</span>
+                  </button>
                 </div>
-
-                <button
-                  onClick={() => handleAdd(product)}
-                  className={`btn-add-cart ${added.has(product.id) ? 'added' : ''}`}
-                  disabled={product.stock === 0}
-                >
-                  {added.has(product.id) ? (
-                    <><Check size={18} /><span>Ajouté !</span></>
-                  ) : (
-                    <><ShoppingCart size={18} /><span>{product.stock === 0 ? 'Rupture de stock' : 'Ajouter au panier'}</span></>
-                  )}
-                </button>
-
-                <button
-                  onClick={() => handleOrder(product)}
-                  className="btn-order"
-                  disabled={product.stock === 0}
-                >
-                  <ShoppingBag size={18} />
-                  <span>Commander</span>
-                </button>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
+        {/* État vide intelligent */}
         {filtered.length === 0 && !loading && (
-          <p className="no-products">Aucun produit trouvé.</p>
+          <div className="empty-results">
+            <div className="empty-results-icon">
+              <SearchX size={36} />
+            </div>
+            <h3>
+              {searchQuery
+                ? `Aucun résultat pour « ${searchQuery} »`
+                : 'Aucun produit trouvé avec ces filtres'}
+            </h3>
+
+            {correctedQuery && (
+              <p className="empty-results-correction">
+                Essayez avec : <strong onClick={applyCorrection} style={{ cursor: 'pointer' }}>{correctedQuery}</strong>
+              </p>
+            )}
+
+            <p>Voici quelques conseils :</p>
+            <ul className="empty-results-tips">
+              <li>Vérifiez l'orthographe de votre recherche</li>
+              <li>Essayez des termes plus généraux</li>
+              <li>Recherchez par catégorie ou marque</li>
+              {hasActiveFilters && <li>Modifiez ou réinitialisez vos filtres</li>}
+            </ul>
+
+            {hasActiveFilters && (
+              <button className="btn-reset-filters" onClick={resetFilters} style={{ marginBottom: '16px' }}>
+                <RotateCcw size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                Réinitialiser les filtres
+              </button>
+            )}
+
+            {/* Bouton WhatsApp */}
+            {searchQuery && (
+              <div style={{ marginTop: '8px' }}>
+                <a
+                  href={whatsappSearchUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-whatsapp-search"
+                >
+                  <MessageCircle size={18} />
+                  Commander sur WhatsApp
+                </a>
+              </div>
+            )}
+
+            {/* Produits similaires */}
+            {similarProducts.length > 0 && (
+              <div className="similar-products-section">
+                <h4>Produits qui pourraient vous intéresser</h4>
+                <div className="similar-products-grid">
+                  {similarProducts.map(product => (
+                    <div key={product.id} className="product-card">
+                      <Link to={`/product/${product.id}`}>
+                        <img src={product.image} alt={product.name} loading="lazy" />
+                      </Link>
+                      {product.old_price && product.old_price > product.price && (
+                        <span className="discount-badge">
+                          -{Math.round((1 - product.price / product.old_price) * 100)}%
+                        </span>
+                      )}
+                      <div className="product-info">
+                        <Link to={`/product/${product.id}`}>
+                          <h3>{product.name}</h3>
+                        </Link>
+                        <div className="product-price">
+                          <span className="price">{product.price.toLocaleString('fr-SN')} FCFA</span>
+                          {product.old_price && product.old_price > product.price && (
+                            <span className="original-price">{product.old_price.toLocaleString('fr-SN')} FCFA</span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleAdd(product)}
+                          className={`btn-add-cart ${added.has(product.id) ? 'added' : ''}`}
+                          disabled={product.stock === 0}
+                        >
+                          {added.has(product.id) ? (
+                            <><Check size={18} /><span>Ajouté !</span></>
+                          ) : (
+                            <><ShoppingCart size={18} /><span>Ajouter au panier</span></>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
