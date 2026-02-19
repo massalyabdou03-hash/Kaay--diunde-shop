@@ -12,6 +12,8 @@ interface FloatingAdConfig {
   button_color: string;
   position: 'bottom-right' | 'bottom-left' | 'bottom-center';
   display_duration: '12h' | '24h' | '7d';
+  image_url: string;
+  show_button: boolean;
 }
 
 /* ─── Constantes ────────────────────────────────────── */
@@ -133,6 +135,16 @@ export default function FloatingAd() {
         <X size={16} />
       </button>
 
+      {/* Image (optionnelle) */}
+      {config.image_url && (
+        <img
+          src={config.image_url}
+          alt=""
+          className="floating-ad__image"
+          loading="lazy"
+        />
+      )}
+
       {/* Contenu */}
       {config.title && (
         <h3 className="floating-ad__title">
@@ -146,7 +158,7 @@ export default function FloatingAd() {
         </p>
       )}
 
-      {config.button_text && safeUrl !== '#' && (
+      {config.show_button !== false && config.button_text && safeUrl !== '#' && (
         isExternalUrl(safeUrl) ? (
           <a
             href={safeUrl}

@@ -2233,10 +2233,22 @@ button {
   color: var(--gray-400);
   transition: all var(--transition);
   padding: 0;
+  z-index: 2;
 }
 .floating-ad__close:hover {
   background: var(--gray-200);
   color: var(--navy);
+}
+
+/* ─── Image publicité (optionnelle) ─────────────────── */
+.floating-ad__image {
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: var(--radius) var(--radius) 0 0;
+  display: block;
+  margin: -20px -20px 14px -20px;
+  width: calc(100% + 40px);
 }
 
 /* ─── Contenu ────────────────────────────────────────── */
@@ -2305,6 +2317,11 @@ button {
   }
   .floating-ad__description {
     font-size: .82rem;
+  }
+  .floating-ad__image {
+    max-height: 140px;
+    margin: -20px -20px 10px -20px;
+    width: calc(100% + 40px);
   }
 }
 
@@ -2589,6 +2606,100 @@ button {
   padding: 14px !important;
   font-size: 1rem !important;
   margin-top: 8px;
+}
+
+/* ─── Upload image admin ─────────────────────────────── */
+.floating-ad-admin__image-upload {
+  margin-top: 4px;
+}
+
+.floating-ad-admin__image-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 28px 20px;
+  border: 2px dashed var(--gray-200);
+  border-radius: var(--radius-sm);
+  background: var(--gray-50);
+  cursor: pointer;
+  transition: all var(--transition);
+  color: var(--gray-400);
+  text-align: center;
+}
+
+.floating-ad-admin__image-dropzone:hover {
+  border-color: var(--blue-lt);
+  background: #f0f7ff;
+  color: var(--blue);
+}
+
+.floating-ad-admin__image-dropzone--loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.floating-ad-admin__image-dropzone span {
+  font-size: .9rem;
+  font-weight: 600;
+}
+
+.floating-ad-admin__image-dropzone small {
+  font-size: .78rem;
+  color: var(--gray-400);
+}
+
+.floating-ad-admin__image-preview-container {
+  position: relative;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--gray-50);
+}
+
+.floating-ad-admin__image-preview {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  display: block;
+}
+
+.floating-ad-admin__image-delete {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px;
+  background: white;
+  border: none;
+  border-top: 1px solid var(--gray-200);
+  color: #ef4444;
+  font-size: .85rem;
+  font-weight: 600;
+  cursor: pointer;
+  justify-content: center;
+  transition: all var(--transition);
+}
+
+.floating-ad-admin__image-delete:hover {
+  background: #fef2f2;
+}
+
+.floating-ad-admin__image-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── Image aperçu admin ─────────────────────────────── */
+.floating-ad-admin__preview-image {
+  width: 100%;
+  max-height: 140px;
+  object-fit: cover;
+  border-radius: var(--radius) var(--radius) 0 0;
+  display: block;
+  margin: -20px -20px 12px -20px;
+  width: calc(100% + 40px);
 }
 
 /* ─── Responsive admin publicité ─────────────────────── */
