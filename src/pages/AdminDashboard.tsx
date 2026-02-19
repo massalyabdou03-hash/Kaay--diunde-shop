@@ -1,7 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, Package, DollarSign, AlertTriangle } from 'lucide-react';
+import { Plus, Edit, Trash2, Package, DollarSign, AlertTriangle, Megaphone, Settings, Save, Eye, EyeOff } from 'lucide-react';
 import { Product, ProductCategory } from '../types';
+
+/* ─── Types pour la publicité flottante ─────────────── */
+interface FloatingAdForm {
+  enabled: boolean;
+  title: string;
+  description: string;
+  button_text: string;
+  button_url: string;
+  button_color: string;
+  position: string;
+  display_duration: string;
+}
 
 interface ProductForm {
   id: string;
@@ -29,10 +41,94 @@ export default function AdminDashboard() {
   const [form, setForm]                 = useState<ProductForm>(EMPTY_FORM);
   const [saving, setSaving]             = useState(false);
 
+  /* ─── État publicité flottante ─────────────────────── */
+  const [activeTab, setActiveTab]       = useState<'products' | 'floating-ad'>('products');
+  const [adForm, setAdForm]             = useState<FloatingAdForm>({
+    enabled: false, title: '', description: '', button_text: '',
+    button_url: '', button_color: '#f97316', position: 'bottom-right', display_duration: '24h'
+  });
+  const [adLoading, setAdLoading]       = useState(false);
+  const [adSaving, setAdSaving]         = useState(false);
+  const [adMessage, setAdMessage]       = useState('');
+
   useEffect(() => {
     if (sessionStorage.getItem('isAdmin') !== 'true') { navigate('/'); return; }
     loadProducts();
+    loadFloatingAdConfig();
   }, [navigate]);
+
+  /* ─── Charger la config publicité ──────────────────── */
+  const loadFloatingAdConfig = () => {
+    setAdLoading(true);
+    fetch('/.netlify/functions/get-floating-ad')
+      .then(r => r.json())
+      .then(data => {
+        setAdForm({
+          enabled: data.enabled || false,
+          title: data.title || '',
+          description: data.description || '',
+          button_text: data.button_text || '',
+          button_url: data.button_url || '',
+          button_color: data.button_color || '#f97316',
+          position: data.position || 'bottom-right',
+          display_duration: data.display_duration || '24h'
+        });
+        setAdLoading(false);
+      })
+      .catch(err => { console.error(err); setAdLoading(false); });
+  };
+
+  /* ─── Sauvegarder la config publicité ──────────────── */
+  const handleSaveAd = async () => {
+    // Validation URL côté client (accepte liens internes et externes)
+    const urlValue = adForm.button_url.trim();
+    if (urlValue !== '') {
+      // Bloquer javascript: et autres protocoles dangereux
+      const lower = urlValue.toLowerCase().replace(/\s/g, '');
+      if (lower.startsWith('javascript:') || lower.startsWith('data:') || lower.startsWith('vbscript:')) {
+        alert('URL non autorisée pour des raisons de sécurité.');
+        return;
+      }
+
+      const isExternal = urlValue.startsWith('http://') || urlValue.startsWith('https://');
+      const isInternal = urlValue.startsWith('/');
+
+      if (!isExternal && !isInternal) {
+        alert('URL invalide. Utilisez un chemin interne (/promo) ou un lien complet (https://...)');
+        return;
+      }
+
+      if (isExternal) {
+        try {
+          new URL(urlValue);
+        } catch {
+          alert('URL externe invalide. Exemple : https://example.com');
+          return;
+        }
+      }
+    }
+
+    setAdSaving(true);
+    setAdMessage('');
+    try {
+      const res = await fetch('/.netlify/functions/save-floating-ad', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adForm)
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erreur serveur');
+      }
+      setAdMessage('Configuration sauvegardée avec succès !');
+      setTimeout(() => setAdMessage(''), 4000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erreur inconnue';
+      alert('Erreur : ' + msg);
+    } finally {
+      setAdSaving(false);
+    }
+  };
 
   const loadProducts = () => {
     setLoading(true);
@@ -116,10 +212,30 @@ export default function AdminDashboard() {
 
         <div className="admin-header">
           <h1>Tableau de bord</h1>
-          <button onClick={openAdd} className="btn-add">
-            <Plus size={18} /> Ajouter un produit
-          </button>
+          <div className="admin-tabs">
+            <button
+              className={`admin-tab ${activeTab === 'products' ? 'admin-tab--active' : ''}`}
+              onClick={() => setActiveTab('products')}
+            >
+              <Package size={16} /> Produits
+            </button>
+            <button
+              className={`admin-tab ${activeTab === 'floating-ad' ? 'admin-tab--active' : ''}`}
+              onClick={() => setActiveTab('floating-ad')}
+            >
+              <Megaphone size={16} /> Publicité flottante
+            </button>
+          </div>
         </div>
+
+        {/* ═══════════ ONGLET PRODUITS ═══════════ */}
+        {activeTab === 'products' && (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
+              <button onClick={openAdd} className="btn-add">
+                <Plus size={18} /> Ajouter un produit
+              </button>
+            </div>
 
         {/* Stats */}
         <div className="stats-grid">
@@ -268,6 +384,171 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+          </>
+        )}
+
+        {/* ═══════════ ONGLET PUBLICITÉ FLOTTANTE ═══════════ */}
+        {activeTab === 'floating-ad' && (
+          <div className="floating-ad-admin">
+            <div className="floating-ad-admin__header">
+              <div className="floating-ad-admin__header-icon">
+                <Megaphone size={24} />
+              </div>
+              <div>
+                <h2>Paramètres — Publicité flottante</h2>
+                <p>Configurez la publicité qui s'affiche sur votre site</p>
+              </div>
+            </div>
+
+            {adLoading ? (
+              <div className="loading">Chargement de la configuration…</div>
+            ) : (
+              <div className="floating-ad-admin__form">
+
+                {/* Toggle activer/désactiver */}
+                <div className="floating-ad-admin__toggle-row">
+                  <div className="floating-ad-admin__toggle-info">
+                    <Settings size={18} />
+                    <div>
+                      <strong>Activer la publicité</strong>
+                      <span>{adForm.enabled ? 'La publicité est visible sur le site' : 'La publicité est masquée'}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`floating-ad-admin__toggle ${adForm.enabled ? 'floating-ad-admin__toggle--on' : ''}`}
+                    onClick={() => setAdForm({ ...adForm, enabled: !adForm.enabled })}
+                    aria-label={adForm.enabled ? 'Désactiver' : 'Activer'}
+                  >
+                    <span className="floating-ad-admin__toggle-knob" />
+                    {adForm.enabled ? <Eye size={14} /> : <EyeOff size={14} />}
+                  </button>
+                </div>
+
+                {/* Titre */}
+                <div className="form-group">
+                  <label>Titre</label>
+                  <input
+                    type="text"
+                    value={adForm.title}
+                    onChange={e => setAdForm({ ...adForm, title: e.target.value })}
+                    placeholder="Ex: Offre spéciale !"
+                    maxLength={255}
+                  />
+                </div>
+
+                {/* Description */}
+                <div className="form-group">
+                  <label>Description</label>
+                  <textarea
+                    rows={3}
+                    value={adForm.description}
+                    onChange={e => setAdForm({ ...adForm, description: e.target.value })}
+                    placeholder="Ex: Profitez de -20% sur tous les produits cette semaine…"
+                    maxLength={2000}
+                  />
+                </div>
+
+                {/* Texte du bouton + URL */}
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Texte du bouton</label>
+                    <input
+                      type="text"
+                      value={adForm.button_text}
+                      onChange={e => setAdForm({ ...adForm, button_text: e.target.value })}
+                      placeholder="Ex: Voir l'offre"
+                      maxLength={255}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Lien du bouton</label>
+                    <input
+                      type="text"
+                      value={adForm.button_url}
+                      onChange={e => setAdForm({ ...adForm, button_url: e.target.value })}
+                      placeholder="/promo ou https://wa.me/..."
+                    />
+                    <small className="floating-ad-admin__url-hint">
+                      Vous pouvez entrer un lien interne (/promo) ou un lien complet (https://...).
+                    </small>
+                  </div>
+                </div>
+
+                {/* Couleur + Position + Durée */}
+                <div className="form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+                  <div className="form-group">
+                    <label>Couleur du bouton</label>
+                    <div className="floating-ad-admin__color-picker">
+                      <input
+                        type="color"
+                        value={adForm.button_color}
+                        onChange={e => setAdForm({ ...adForm, button_color: e.target.value })}
+                      />
+                      <span>{adForm.button_color}</span>
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label>Position</label>
+                    <select
+                      value={adForm.position}
+                      onChange={e => setAdForm({ ...adForm, position: e.target.value })}
+                    >
+                      <option value="bottom-right">Bas droite</option>
+                      <option value="bottom-left">Bas gauche</option>
+                      <option value="bottom-center">Bas centre</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Durée après fermeture</label>
+                    <select
+                      value={adForm.display_duration}
+                      onChange={e => setAdForm({ ...adForm, display_duration: e.target.value })}
+                    >
+                      <option value="12h">12 heures</option>
+                      <option value="24h">24 heures</option>
+                      <option value="7d">7 jours</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Aperçu */}
+                <div className="floating-ad-admin__preview">
+                  <h4>Aperçu</h4>
+                  <div className="floating-ad-admin__preview-box">
+                    <div className="floating-ad-admin__preview-card">
+                      {adForm.title && <h3>{adForm.title}</h3>}
+                      {adForm.description && <p>{adForm.description}</p>}
+                      {adForm.button_text && (
+                        <span
+                          className="floating-ad-admin__preview-btn"
+                          style={{ backgroundColor: adForm.button_color }}
+                        >
+                          {adForm.button_text}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Message de succès */}
+                {adMessage && (
+                  <div className="floating-ad-admin__success">{adMessage}</div>
+                )}
+
+                {/* Bouton sauvegarder */}
+                <button
+                  onClick={handleSaveAd}
+                  className="btn-save floating-ad-admin__save-btn"
+                  disabled={adSaving}
+                >
+                  <Save size={18} />
+                  {adSaving ? 'Sauvegarde en cours…' : 'Sauvegarder la configuration'}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

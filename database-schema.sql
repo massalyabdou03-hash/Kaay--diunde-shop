@@ -65,7 +65,27 @@ INSERT INTO produits (id, name, description, price, old_price, category, image, 
 ('sac-cuir',        'Sac à main en cuir',          'Sac à main élégant en cuir véritable. Plusieurs compartiments. Livraison offerte.',      35000,  45000, 'accessories', 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800', false, 10);
 
 -- ──────────────────────────────────────────────────────
+-- TABLE : publicite_flottante (configuration unique)
+-- ──────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS publicite_flottante (
+    id               INTEGER      PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    enabled          BOOLEAN      DEFAULT false,
+    title            VARCHAR(255) DEFAULT '',
+    description      TEXT         DEFAULT '',
+    button_text      VARCHAR(255) DEFAULT '',
+    button_url       TEXT         DEFAULT '',
+    button_color     VARCHAR(20)  DEFAULT '#f97316',
+    position         VARCHAR(20)  DEFAULT 'bottom-right',
+    display_duration VARCHAR(10)  DEFAULT '24h',
+    updated_at       TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insérer la ligne par défaut (désactivée)
+INSERT INTO publicite_flottante (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+
+-- ──────────────────────────────────────────────────────
 -- Vérification rapide
 -- ──────────────────────────────────────────────────────
 -- SELECT * FROM produits;
 -- SELECT * FROM ordres;
+-- SELECT * FROM publicite_flottante;

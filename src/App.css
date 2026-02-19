@@ -2159,3 +2159,466 @@ button {
   }
 }
 
+/* ═══════════════════════════════════════════════════════
+   PUBLICITÉ FLOTTANTE — Front-end
+   ═══════════════════════════════════════════════════════ */
+
+/* ─── Conteneur principal ─────────────────────────────── */
+.floating-ad {
+  position: fixed;
+  z-index: 800;
+  max-width: 360px;
+  width: calc(100% - 32px);
+  background: white;
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(0,0,0,.15), 0 4px 12px rgba(0,0,0,.08);
+  padding: 20px 20px 18px;
+  opacity: 0;
+  transform: translateY(30px);
+  pointer-events: none;
+  transition: opacity .4s cubic-bezier(.4,0,.2,1), transform .4s cubic-bezier(.4,0,.2,1);
+  border: 1px solid var(--gray-200);
+}
+
+.floating-ad--visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.floating-ad--closing {
+  opacity: 0;
+  transform: translateY(20px);
+  pointer-events: none;
+}
+
+/* ─── Positions ───────────────────────────────────────── */
+.floating-ad--bottom-right {
+  bottom: 90px;
+  right: 20px;
+}
+
+.floating-ad--bottom-left {
+  bottom: 90px;
+  left: 20px;
+}
+
+.floating-ad--bottom-center {
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%) translateY(30px);
+}
+.floating-ad--bottom-center.floating-ad--visible {
+  transform: translateX(-50%) translateY(0);
+}
+.floating-ad--bottom-center.floating-ad--closing {
+  transform: translateX(-50%) translateY(20px);
+}
+
+/* ─── Bouton fermer ──────────────────────────────────── */
+.floating-ad__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--gray-100);
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--gray-400);
+  transition: all var(--transition);
+  padding: 0;
+}
+.floating-ad__close:hover {
+  background: var(--gray-200);
+  color: var(--navy);
+}
+
+/* ─── Contenu ────────────────────────────────────────── */
+.floating-ad__title {
+  font-family: 'Sora', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 6px;
+  padding-right: 28px;
+  line-height: 1.3;
+}
+
+.floating-ad__description {
+  font-size: .875rem;
+  color: var(--gray-600);
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.floating-ad__button {
+  display: inline-block;
+  color: white;
+  padding: 9px 20px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: .875rem;
+  transition: all var(--transition);
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+}
+.floating-ad__button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0,0,0,.2);
+  filter: brightness(1.1);
+}
+
+/* ─── Responsive mobile ──────────────────────────────── */
+@media (max-width: 480px) {
+  .floating-ad {
+    max-width: none;
+    width: calc(100% - 24px);
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 80px !important;
+    transform: translateX(0) translateY(30px);
+  }
+  .floating-ad--visible {
+    transform: translateX(0) translateY(0);
+  }
+  .floating-ad--closing {
+    transform: translateX(0) translateY(20px);
+  }
+  .floating-ad--bottom-center {
+    left: 12px !important;
+    transform: translateX(0) translateY(30px);
+  }
+  .floating-ad--bottom-center.floating-ad--visible {
+    transform: translateX(0) translateY(0);
+  }
+  .floating-ad--bottom-center.floating-ad--closing {
+    transform: translateX(0) translateY(20px);
+  }
+  .floating-ad__title {
+    font-size: .95rem;
+  }
+  .floating-ad__description {
+    font-size: .82rem;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   PUBLICITÉ FLOTTANTE — Admin
+   ═══════════════════════════════════════════════════════ */
+
+/* ─── Onglets admin ──────────────────────────────────── */
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.admin-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1.5px solid var(--gray-200);
+  background: white;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--gray-600);
+  transition: all var(--transition);
+}
+.admin-tab:hover {
+  border-color: var(--blue-lt);
+  color: var(--blue);
+}
+.admin-tab--active {
+  background: var(--blue);
+  color: white;
+  border-color: var(--blue);
+}
+.admin-tab--active:hover {
+  background: var(--blue);
+  color: white;
+}
+
+/* ─── Section admin publicité ────────────────────────── */
+.floating-ad-admin {
+  background: white;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--gray-200);
+  padding: 28px;
+}
+
+.floating-ad-admin__header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.floating-ad-admin__header-icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, var(--orange), #dc2626);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.floating-ad-admin__header h2 {
+  font-family: 'Sora', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 4px;
+}
+
+.floating-ad-admin__header p {
+  font-size: .85rem;
+  color: var(--gray-400);
+}
+
+.floating-ad-admin__form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ─── Toggle activer/désactiver ──────────────────────── */
+.floating-ad-admin__toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  margin-bottom: 20px;
+}
+
+.floating-ad-admin__toggle-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--gray-600);
+}
+
+.floating-ad-admin__toggle-info strong {
+  display: block;
+  font-size: .9rem;
+  color: var(--navy);
+  margin-bottom: 2px;
+}
+
+.floating-ad-admin__toggle-info span {
+  display: block;
+  font-size: .78rem;
+  color: var(--gray-400);
+}
+
+.floating-ad-admin__toggle {
+  position: relative;
+  width: 56px;
+  height: 30px;
+  min-height: 30px;
+  background: var(--gray-200);
+  border: none;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: background .3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0 6px;
+}
+
+.floating-ad-admin__toggle--on {
+  background: var(--success);
+  justify-content: flex-end;
+}
+
+.floating-ad-admin__toggle--on .floating-ad-admin__toggle-knob {
+  transform: translateX(24px);
+}
+
+.floating-ad-admin__toggle-knob {
+  position: absolute;
+  left: 4px;
+  width: 22px;
+  height: 22px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0,0,0,.15);
+  transition: transform .3s ease;
+}
+
+.floating-ad-admin__toggle svg {
+  color: white;
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── Sélecteur couleur ──────────────────────────────── */
+.floating-ad-admin__color-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  background: white;
+}
+
+.floating-ad-admin__color-picker input[type="color"] {
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+  background: none;
+}
+
+.floating-ad-admin__color-picker span {
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--gray-600);
+  font-family: 'DM Sans', monospace;
+}
+
+/* ─── Aperçu ─────────────────────────────────────────── */
+.floating-ad-admin__preview {
+  margin-top: 12px;
+  margin-bottom: 16px;
+}
+
+.floating-ad-admin__preview h4 {
+  font-family: 'Sora', sans-serif;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--gray-400);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 12px;
+}
+
+.floating-ad-admin__preview-box {
+  background: var(--gray-50);
+  border: 1px dashed var(--gray-200);
+  border-radius: var(--radius);
+  padding: 24px;
+  display: flex;
+  justify-content: center;
+}
+
+.floating-ad-admin__preview-card {
+  background: white;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--gray-200);
+  padding: 20px;
+  max-width: 320px;
+  width: 100%;
+}
+
+.floating-ad-admin__preview-card h3 {
+  font-family: 'Sora', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 6px;
+}
+
+.floating-ad-admin__preview-card p {
+  font-size: .85rem;
+  color: var(--gray-600);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.floating-ad-admin__preview-btn {
+  display: inline-block;
+  color: white;
+  padding: 8px 18px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: .85rem;
+}
+
+/* ─── Message de succès ──────────────────────────────── */
+.floating-ad-admin__success {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: .9rem;
+  text-align: center;
+  animation: fadeInError .3s ease-out;
+}
+
+/* ─── Aide URL sous le champ ─────────────────────────── */
+.floating-ad-admin__url-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: .8rem;
+  color: var(--gray-400);
+  line-height: 1.4;
+}
+
+/* ─── Bouton sauvegarder ─────────────────────────────── */
+.floating-ad-admin__save-btn {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px !important;
+  font-size: 1rem !important;
+  margin-top: 8px;
+}
+
+/* ─── Responsive admin publicité ─────────────────────── */
+@media (max-width: 768px) {
+  .admin-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .admin-tabs {
+    width: 100%;
+  }
+  .admin-tab {
+    flex: 1;
+    justify-content: center;
+  }
+  .floating-ad-admin {
+    padding: 20px;
+  }
+  .floating-ad-admin__toggle-row {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 600px) {
+  .floating-ad-admin__header {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
