@@ -90,6 +90,26 @@ exports.handler = async function(event) {
   }
 
   // Validation
+  const showButton = config.show_button !== false;
+
+  // Si le bouton est activé, texte et URL sont obligatoires
+  if (showButton) {
+    if (!config.button_text || config.button_text.trim() === '') {
+      return {
+        statusCode: 400,
+        headers: HEADERS,
+        body: JSON.stringify({ error: 'Le texte du bouton est obligatoire quand le bouton est activé.' })
+      };
+    }
+    if (!config.button_url || config.button_url.trim() === '') {
+      return {
+        statusCode: 400,
+        headers: HEADERS,
+        body: JSON.stringify({ error: 'L\'URL du bouton est obligatoire quand le bouton est activé.' })
+      };
+    }
+  }
+
   if (config.button_url && !isValidUrl(config.button_url)) {
     return {
       statusCode: 400,
@@ -122,9 +142,19 @@ exports.handler = async function(event) {
       )
     `);
 
+    // Ajouter la colonne image_data si elle n'existe pas encore
+    await pool.query(`
+      ALTER TABLE publicite_flottante ADD COLUMN IF NOT EXISTS image_data TEXT DEFAULT ''
+    `);
+
+    // Ajouter la colonne show_button si elle n'existe pas encore
+    await pool.query(`
+      ALTER TABLE publicite_flottante ADD COLUMN IF NOT EXISTS show_button BOOLEAN DEFAULT true
+    `);
+
     const result = await pool.query(
-      `INSERT INTO publicite_flottante (id, enabled, title, description, button_text, button_url, button_color, position, display_duration, updated_at)
-       VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
+      `INSERT INTO publicite_flottante (id, enabled, title, description, button_text, button_url, button_color, position, display_duration, show_button, updated_at)
+       VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
        ON CONFLICT (id) DO UPDATE SET
          enabled = $1,
          title = $2,
@@ -134,6 +164,7 @@ exports.handler = async function(event) {
          button_color = $6,
          position = $7,
          display_duration = $8,
+         show_button = $9,
          updated_at = CURRENT_TIMESTAMP
        RETURNING *`,
       [
@@ -144,7 +175,8 @@ exports.handler = async function(event) {
         (config.button_url || '').substring(0, 2000),
         buttonColor,
         position,
-        duration
+        duration,
+        showButton
       ]
     );
 

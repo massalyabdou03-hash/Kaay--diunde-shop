@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, Package, DollarSign, AlertTriangle, Megaphone, Settings, Save, Eye, EyeOff } from 'lucide-react';
+import { Plus, Edit, Trash2, Package, DollarSign, AlertTriangle, Megaphone, Settings, Save, Eye, EyeOff, Upload, Image, X } from 'lucide-react';
 import { Product, ProductCategory } from '../types';
 
 /* ─── Types pour la publicité flottante ─────────────── */
@@ -13,6 +13,8 @@ interface FloatingAdForm {
   button_color: string;
   position: string;
   display_duration: string;
+  image_url: string;
+  show_button: boolean;
 }
 
 interface ProductForm {
@@ -45,11 +47,14 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab]       = useState<'products' | 'floating-ad'>('products');
   const [adForm, setAdForm]             = useState<FloatingAdForm>({
     enabled: false, title: '', description: '', button_text: '',
-    button_url: '', button_color: '#f97316', position: 'bottom-right', display_duration: '24h'
+    button_url: '', button_color: '#f97316', position: 'bottom-right', display_duration: '24h',
+    image_url: '', show_button: true
   });
   const [adLoading, setAdLoading]       = useState(false);
   const [adSaving, setAdSaving]         = useState(false);
   const [adMessage, setAdMessage]       = useState('');
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [imageUploading, setImageUploading] = useState(false);
 
   useEffect(() => {
     if (sessionStorage.getItem('isAdmin') !== 'true') { navigate('/'); return; }
@@ -71,15 +76,119 @@ export default function AdminDashboard() {
           button_url: data.button_url || '',
           button_color: data.button_color || '#f97316',
           position: data.position || 'bottom-right',
-          display_duration: data.display_duration || '24h'
+          display_duration: data.display_duration || '24h',
+          image_url: data.image_url || '',
+          show_button: data.show_button !== false
         });
+        // Si une image existe, définir la prévisualisation
+        if (data.image_url) {
+          setImagePreview(data.image_url);
+        } else {
+          setImagePreview('');
+        }
         setAdLoading(false);
       })
       .catch(err => { console.error(err); setAdLoading(false); });
   };
 
+  /* ─── Upload image publicité ───────────────────────── */
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Vérifier le type de fichier
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Format non autorisé. Formats acceptés : JPG, PNG, WebP.');
+      e.target.value = '';
+      return;
+    }
+
+    // Vérifier la taille (1 Mo max)
+    if (file.size > 1 * 1024 * 1024) {
+      alert('Image trop volumineuse. Taille maximum : 1 Mo.');
+      e.target.value = '';
+      return;
+    }
+
+    // Lire le fichier en base64
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const dataUrl = event.target?.result as string;
+      if (!dataUrl) return;
+
+      setImageUploading(true);
+      try {
+        const res = await fetch('/.netlify/functions/upload-ad-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: dataUrl, filename: file.name })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Erreur upload');
+        }
+
+        // Mettre à jour la prévisualisation et le formulaire
+        setImagePreview(dataUrl);
+        setAdForm(prev => ({ ...prev, image_url: '/.netlify/functions/get-ad-image' }));
+        setAdMessage('Image uploadée avec succès !');
+        setTimeout(() => setAdMessage(''), 4000);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Erreur inconnue';
+        alert('Erreur upload : ' + msg);
+      } finally {
+        setImageUploading(false);
+        e.target.value = '';
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  /* ─── Supprimer image publicité ──────────────────────── */
+  const handleImageDelete = async () => {
+    if (!confirm('Supprimer l\'image de la publicité ?')) return;
+
+    setImageUploading(true);
+    try {
+      const res = await fetch('/.netlify/functions/delete-ad-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}'
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erreur suppression');
+      }
+
+      setImagePreview('');
+      setAdForm(prev => ({ ...prev, image_url: '' }));
+      setAdMessage('Image supprimée avec succès !');
+      setTimeout(() => setAdMessage(''), 4000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erreur inconnue';
+      alert('Erreur suppression : ' + msg);
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
   /* ─── Sauvegarder la config publicité ──────────────── */
   const handleSaveAd = async () => {
+    // Validation bouton seulement si le bouton est activé
+    if (adForm.show_button) {
+      if (!adForm.button_text.trim()) {
+        alert('Le texte du bouton est obligatoire quand le bouton est activé.');
+        return;
+      }
+      if (!adForm.button_url.trim()) {
+        alert('L\'URL du bouton est obligatoire quand le bouton est activé.');
+        return;
+      }
+    }
+
     // Validation URL côté client (accepte liens internes et externes)
     const urlValue = adForm.button_url.trim();
     if (urlValue !== '') {
@@ -451,10 +560,71 @@ export default function AdminDashboard() {
                   />
                 </div>
 
-                {/* Texte du bouton + URL */}
+                {/* Image (optionnelle) */}
+                <div className="form-group">
+                  <label><Image size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />Image (optionnelle)</label>
+                  <div className="floating-ad-admin__image-upload">
+                    {imagePreview ? (
+                      <div className="floating-ad-admin__image-preview-container">
+                        <img
+                          src={imagePreview}
+                          alt="Aperçu image publicité"
+                          className="floating-ad-admin__image-preview"
+                        />
+                        <button
+                          type="button"
+                          className="floating-ad-admin__image-delete"
+                          onClick={handleImageDelete}
+                          disabled={imageUploading}
+                          title="Supprimer l'image"
+                        >
+                          <X size={14} />
+                          Supprimer l'image
+                        </button>
+                      </div>
+                    ) : (
+                      <label className={`floating-ad-admin__image-dropzone ${imageUploading ? 'floating-ad-admin__image-dropzone--loading' : ''}`}>
+                        <Upload size={24} />
+                        <span>{imageUploading ? 'Upload en cours…' : 'Cliquez pour ajouter une image'}</span>
+                        <small>JPG, PNG, WebP — 1 Mo max</small>
+                        <input
+                          type="file"
+                          accept=".jpg,.jpeg,.png,.webp"
+                          onChange={handleImageUpload}
+                          disabled={imageUploading}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+
+                {/* Toggle afficher le bouton */}
+                <div className="floating-ad-admin__toggle-row">
+                  <div className="floating-ad-admin__toggle-info">
+                    <Settings size={18} />
+                    <div>
+                      <strong>Afficher le bouton</strong>
+                      <span>{adForm.show_button ? 'Le bouton d\'action est visible' : 'Le bouton est masqué'}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`floating-ad-admin__toggle ${adForm.show_button ? 'floating-ad-admin__toggle--on' : ''}`}
+                    onClick={() => setAdForm({ ...adForm, show_button: !adForm.show_button })}
+                    aria-label={adForm.show_button ? 'Masquer le bouton' : 'Afficher le bouton'}
+                  >
+                    <span className="floating-ad-admin__toggle-knob" />
+                    {adForm.show_button ? <Eye size={14} /> : <EyeOff size={14} />}
+                  </button>
+                </div>
+
+                {/* Texte du bouton + URL (visible uniquement si bouton activé) */}
+                {adForm.show_button && (
+                <>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Texte du bouton</label>
+                    <label>Texte du bouton *</label>
                     <input
                       type="text"
                       value={adForm.button_text}
@@ -464,7 +634,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div className="form-group">
-                    <label>Lien du bouton</label>
+                    <label>Lien du bouton *</label>
                     <input
                       type="text"
                       value={adForm.button_url}
@@ -477,19 +647,23 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Couleur + Position + Durée */}
-                <div className="form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
-                  <div className="form-group">
-                    <label>Couleur du bouton</label>
-                    <div className="floating-ad-admin__color-picker">
-                      <input
-                        type="color"
-                        value={adForm.button_color}
-                        onChange={e => setAdForm({ ...adForm, button_color: e.target.value })}
-                      />
-                      <span>{adForm.button_color}</span>
-                    </div>
+                {/* Couleur du bouton */}
+                <div className="form-group">
+                  <label>Couleur du bouton</label>
+                  <div className="floating-ad-admin__color-picker">
+                    <input
+                      type="color"
+                      value={adForm.button_color}
+                      onChange={e => setAdForm({ ...adForm, button_color: e.target.value })}
+                    />
+                    <span>{adForm.button_color}</span>
                   </div>
+                </div>
+                </>
+                )}
+
+                {/* Position + Durée */}
+                <div className="form-row" style={{ gridTemplateColumns: '1fr 1fr' }}>
                   <div className="form-group">
                     <label>Position</label>
                     <select
@@ -519,9 +693,16 @@ export default function AdminDashboard() {
                   <h4>Aperçu</h4>
                   <div className="floating-ad-admin__preview-box">
                     <div className="floating-ad-admin__preview-card">
+                      {imagePreview && (
+                        <img
+                          src={imagePreview}
+                          alt="Image publicité"
+                          className="floating-ad-admin__preview-image"
+                        />
+                      )}
                       {adForm.title && <h3>{adForm.title}</h3>}
                       {adForm.description && <p>{adForm.description}</p>}
-                      {adForm.button_text && (
+                      {adForm.show_button && adForm.button_text && (
                         <span
                           className="floating-ad-admin__preview-btn"
                           style={{ backgroundColor: adForm.button_color }}

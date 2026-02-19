@@ -77,6 +77,8 @@ CREATE TABLE IF NOT EXISTS publicite_flottante (
     button_color     VARCHAR(20)  DEFAULT '#f97316',
     position         VARCHAR(20)  DEFAULT 'bottom-right',
     display_duration VARCHAR(10)  DEFAULT '24h',
+    image_data       TEXT         DEFAULT '',
+    show_button      BOOLEAN      DEFAULT true,
     updated_at       TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
 );
 
