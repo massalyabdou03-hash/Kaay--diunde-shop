@@ -30,3 +30,7 @@ dist-ssr
 
 # Netlify
 .netlify
+
+# Skills installés localement pour Claude Code
+.claude/
+skills-lock.json
