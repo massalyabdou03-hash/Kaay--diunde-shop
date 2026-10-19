@@ -38,8 +38,9 @@ const SYNONYMES: Record<string, string[]> = {
   'promotion': ['promo', 'solde', 'réduction', 'discount', 'offre'],
   'pas cher': ['bon prix', 'abordable', 'économique', 'budget'],
   'cher': ['premium', 'luxe', 'haut de gamme'],
-  'ramadan': ['iftar', 'prière', 'jeûne', 'dattes', 'oud'],
-  'dattes': ['dates', 'datte', 'ramadan'],
+  'rentrée': ['rentree', 'école', 'ecole', 'classe', 'cours', 'étudiant', 'etudiant', 'scolaire'],
+  'trépied': ['trepied', 'tripod', 'support', 'perche'],
+  'ring light': ['ringlight', 'lumière', 'lumiere', 'led', 'éclairage', 'eclairage', 'selfie'],
   'hijab': ['voile', 'foulard', 'hijab tendance'],
   'parfum': ['oud', 'fragrance', 'senteur'],
 };
@@ -100,7 +101,7 @@ const CATEGORY_LABELS: Record<ProductCategory, string[]> = {
   'home': ['maison', 'home', 'intérieur', 'décoration', 'deco', 'déco'],
   'sports': ['sport', 'sports', 'fitness', 'gym'],
   'books': ['livre', 'livres', 'book', 'bouquin', 'roman', 'lecture'],
-  'ramadan': ['ramadan', 'iftar', 'prière', 'priere', 'hijab', 'dattes', 'oud', 'lanterne'],
+  'school': ['rentrée', 'rentree', 'école', 'ecole', 'scolaire', 'classe', 'étudiant', 'etudiant', 'cours'],
 };
 
 const CATEGORY_DISPLAY: Record<ProductCategory, string> = {
@@ -110,7 +111,7 @@ const CATEGORY_DISPLAY: Record<ProductCategory, string> = {
   'home': 'Maison',
   'sports': 'Sport',
   'books': 'Livres',
-  'ramadan': 'Ramadan',
+  'school': 'Rentrée',
 };
 
 // ─── Distance de Levenshtein pour la correction floue ────────────

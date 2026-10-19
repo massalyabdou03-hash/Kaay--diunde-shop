@@ -465,7 +465,7 @@ export default function AdminDashboard() {
                     <option value="home">Maison</option>
                     <option value="sports">Sport</option>
                     <option value="books">Livres</option>
-                    <option value="ramadan">Ramadan</option>
+                    <option value="school">Rentrée scolaire</option>
                   </select>
                 </div>
                 <div className="form-group">

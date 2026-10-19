@@ -8,11 +8,11 @@ import { WHATSAPP_NUMBER } from '../constants';
 import { fetchProducts } from '../utils/productsApi';
 import { usePageMeta } from '../utils/usePageMeta';
 
-const ALL_CATEGORIES: ProductCategory[] = ['electronics','fashion','accessories','home','sports','books','ramadan'];
+const ALL_CATEGORIES: ProductCategory[] = ['electronics','fashion','accessories','home','sports','books','school'];
 const LABELS: Record<ProductCategory | 'all', string> = {
   all: 'Tous', electronics: 'Électronique', fashion: 'Mode',
   accessories: 'Accessoires', home: 'Maison', sports: 'Sport', books: 'Livres',
-  ramadan: '🕌 Ramadan'
+  school: '🎒 Rentrée'
 };
 
 type SortOption = 'default' | 'price_asc' | 'price_desc' | 'newest';
