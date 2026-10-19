@@ -1,4 +1,6 @@
 const { Pool } = require('pg');
+const { requireAdmin } = require('./_shared/auth');
+const { corsHeaders } = require('./_shared/http');
 
 if (!process.env.DATABASE_URL) {
   console.error('❌ ERREUR CRITIQUE: DATABASE_URL est undefined.');
@@ -9,12 +11,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-const HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Content-Type': 'application/json'
-};
+const HEADERS = corsHeaders('POST, OPTIONS');
 
 // Validation URL côté serveur — accepte liens internes et externes
 function isValidUrl(str) {
@@ -43,15 +40,10 @@ function isValidUrl(str) {
   }
 }
 
-// Nettoyage des entrées pour éviter XSS
-function sanitize(str) {
-  if (typeof str !== 'string') return '';
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;');
+// Le texte est enregistré tel quel : React l'échappe lui-même à l'affichage.
+// (L'ancien échappement avant enregistrement faisait apparaître « &#x27; » à la place des apostrophes.)
+function cleanText(value, maxLength) {
+  return typeof value === 'string' ? value.substring(0, maxLength) : '';
 }
 
 const VALID_POSITIONS = ['bottom-right', 'bottom-left', 'bottom-center'];
@@ -69,6 +61,10 @@ exports.handler = async function(event) {
       body: JSON.stringify({ error: 'Méthode non autorisée' })
     };
   }
+
+  // 🔒 Réservé à l'administrateur connecté
+  const denied = requireAdmin(event, HEADERS);
+  if (denied) return denied;
 
   if (!process.env.DATABASE_URL) {
     return {
@@ -169,9 +165,9 @@ exports.handler = async function(event) {
        RETURNING *`,
       [
         Boolean(config.enabled),
-        sanitize((config.title || '').substring(0, 255)),
-        sanitize((config.description || '').substring(0, 2000)),
-        sanitize((config.button_text || '').substring(0, 255)),
+        cleanText(config.title, 255),
+        cleanText(config.description, 2000),
+        cleanText(config.button_text, 255),
         (config.button_url || '').substring(0, 2000),
         buttonColor,
         position,
@@ -191,7 +187,7 @@ exports.handler = async function(event) {
     return {
       statusCode: 500,
       headers: HEADERS,
-      body: JSON.stringify({ error: 'Impossible de sauvegarder la config', details: error.message })
+      body: JSON.stringify({ error: 'Impossible de sauvegarder la config' })
     };
   }
 };

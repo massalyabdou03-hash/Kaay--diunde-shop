@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, X, Tag, ShoppingBag, ArrowRight, Loader2 } from 'lucide-react';
 import { Product } from '../types';
 import { getSearchSuggestions, correctQuery, SearchSuggestion } from '../utils/searchEngine';
+import { fetchProducts } from '../utils/productsApi';
 
 // ─── SmartSearch : barre de recherche intelligente avec auto-complétion ──
 export default function SmartSearch() {
@@ -22,8 +23,7 @@ export default function SmartSearch() {
 
   // Charger les produits au montage
   useEffect(() => {
-    fetch('/.netlify/functions/get-products')
-      .then(r => r.json())
+    fetchProducts()
       .then(data => setProducts(data))
       .catch(() => {});
   }, []);

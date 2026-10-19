@@ -4,8 +4,13 @@ import { ShoppingBag, ShoppingCart, Check, Truck, Shield, MessageCircle, Star } 
 import { useCart } from '../context/CartContext';
 import { Product } from '../types';
 import SuggestionForm from '../components/SuggestionForm';
+import { SHOW_TESTIMONIALS } from '../constants';
+import { fetchProducts } from '../utils/productsApi';
+import { usePageMeta } from '../utils/usePageMeta';
 
-/* Données des témoignages clients */
+/* Données des témoignages clients.
+   ⚠️ Exemples de démonstration : ne les affichez (SHOW_TESTIMONIALS dans constants.ts)
+   qu'après les avoir remplacés par de vrais avis, avec l'accord des clients. */
 const testimonials = [
   {
     name: 'Aminata Diallo',
@@ -28,6 +33,11 @@ const testimonials = [
 ];
 
 export default function Home() {
+  usePageMeta({
+    title: 'Kaay Diunde | Accessoires téléphone et smartphones au Sénégal',
+    description: 'Coques, chargeurs, écouteurs, power banks et smartphones. Livraison à Dakar et partout au Sénégal, paiement à la livraison (Cash, Wave, Orange Money).',
+    path: '/',
+  });
   const [featured, setFeatured] = useState<Product[]>([]);
   const [loading, setLoading]   = useState(true);
   const [added, setAdded]       = useState<Set<string>>(new Set());
@@ -36,13 +46,12 @@ export default function Home() {
   const testimonialsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch('/.netlify/functions/get-products')
-      .then(r => r.json())
+    fetchProducts()
       .then((data: Product[]) => {
         setFeatured(data.filter(p => p.featured));
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(err => { console.error('Erreur chargement produits:', err); setLoading(false); });
   }, []);
 
   /* Animation fade-in au scroll pour les cartes témoignages */
@@ -85,10 +94,10 @@ export default function Home() {
     <div className="home-page">
       <section className="hero">
         <div className="container hero-content">
-          <div className="hero-badge">🇸🇳 La boutique de confiance au Sénégal</div>
-          <h1>Commerce en ligne<br /><span>simple & rapide</span></h1>
+          <div className="hero-badge">🇸🇳 Livraison partout au Sénégal</div>
+          <h1>Accessoires & téléphones<br /><span>livrés chez vous</span></h1>
           <p className="hero-description">
-            Des produits de qualité, livrés rapidement partout au Sénégal.
+            Coques, chargeurs, écouteurs, power banks et smartphones.
             Paiement à la livraison — Cash, Wave ou Orange Money.
           </p>
           <Link to="/shop" className="btn-hero">
@@ -193,7 +202,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Section témoignages clients */}
+      {/* Section témoignages clients (masquée tant que SHOW_TESTIMONIALS est à false) */}
+      {SHOW_TESTIMONIALS && (
       <section className="testimonials-section" ref={testimonialsRef}>
         <div className="container">
           <div className="section-header">
@@ -222,6 +232,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      )}
 
       {/* Section formulaire de suggestions */}
       <SuggestionForm />

@@ -1,9 +1,14 @@
 -- ═══════════════════════════════════════════════════════
 -- Kaay Diunde Shop — Schéma PostgreSQL (Neon)
--- Tables : produits | ordres
+-- Tables : produits | ordres | ordres_articles | publicite_flottante
 -- ═══════════════════════════════════════════════════════
+--
+-- ⛔ ATTENTION : ce script SUPPRIME les tables « ordres » et « produits »
+--    (DROP TABLE ... CASCADE) puis insère des produits de démonstration.
+--    À exécuter UNIQUEMENT sur une base vide ou de test, JAMAIS sur la base de production.
 
 -- Nettoyage
+DROP TABLE IF EXISTS ordres_articles CASCADE;
 DROP TABLE IF EXISTS ordres CASCADE;
 DROP TABLE IF EXISTS produits CASCADE;
 
@@ -52,6 +57,21 @@ CREATE INDEX idx_ordres_statut     ON ordres(statut);
 CREATE INDEX idx_ordres_created    ON ordres(created_at);
 
 -- ──────────────────────────────────────────────────────
+-- TABLE : ordres_articles  (une ligne par produit commandé)
+-- Créée aussi automatiquement par la fonction create-order.
+-- ──────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS ordres_articles (
+    id                  SERIAL PRIMARY KEY,
+    numéro_de_commande  VARCHAR(30)  NOT NULL,   -- = ordres.numéro_de_commande
+    produit_id          VARCHAR(100) NOT NULL,
+    nom_produit         VARCHAR(255) NOT NULL,   -- nom au moment de la commande
+    prix_unitaire       INTEGER      NOT NULL,   -- prix au moment de la commande (FCFA)
+    quantite            INTEGER      NOT NULL,
+    created_at          TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_ordres_articles_commande ON ordres_articles(numéro_de_commande);
+
+-- ──────────────────────────────────────────────────────
 -- Données de démo (8 produits)
 -- ──────────────────────────────────────────────────────
 INSERT INTO produits (id, name, description, price, old_price, category, image, featured, stock) VALUES
@@ -90,4 +110,5 @@ INSERT INTO publicite_flottante (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 -- ──────────────────────────────────────────────────────
 -- SELECT * FROM produits;
 -- SELECT * FROM ordres;
+-- SELECT * FROM ordres_articles;
 -- SELECT * FROM publicite_flottante;

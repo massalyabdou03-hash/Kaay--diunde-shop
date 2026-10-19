@@ -1,4 +1,6 @@
 const { Pool } = require('pg');
+const { requireAdmin } = require('./_shared/auth');
+const { corsHeaders } = require('./_shared/http');
 
 if (!process.env.DATABASE_URL) {
   console.error('❌ ERREUR CRITIQUE: DATABASE_URL est undefined.');
@@ -9,12 +11,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-const HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Content-Type': 'application/json'
-};
+const HEADERS = corsHeaders('POST, OPTIONS');
 
 exports.handler = async function(event) {
   if (event.httpMethod === 'OPTIONS') {
@@ -28,6 +25,10 @@ exports.handler = async function(event) {
       body: JSON.stringify({ error: 'Méthode non autorisée' })
     };
   }
+
+  // 🔒 Réservé à l'administrateur connecté
+  const denied = requireAdmin(event, HEADERS);
+  if (denied) return denied;
 
   if (!process.env.DATABASE_URL) {
     return {
@@ -87,7 +88,7 @@ exports.handler = async function(event) {
     return {
       statusCode: 500,
       headers: HEADERS,
-      body: JSON.stringify({ error: 'Impossible de supprimer le produit', details: error.message })
+      body: JSON.stringify({ error: 'Impossible de supprimer le produit' })
     };
   }
 };

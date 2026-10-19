@@ -1,19 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { copyFileSync } from 'fs'
 
 // https://vitejs.dev/config/
+// robots.txt et favicon.svg sont dans /public : Vite les copie tout seul dans dist/.
+// Le sitemap est généré à la demande par la fonction Netlify « sitemap ».
 export default defineConfig({
-  plugins: [
-    react(),
-    {
-      name: 'copy-static-files',
-      closeBundle() {
-        copyFileSync('sitemap.xml', 'dist/sitemap.xml')
-        copyFileSync('robots.txt', 'dist/robots.txt')
-      }
-    }
-  ],
+  plugins: [react()],
   server: {
     port: 5173
   },

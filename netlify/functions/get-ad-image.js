@@ -82,7 +82,7 @@ exports.handler = async function(event) {
     return {
       statusCode: 500,
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Impossible de récupérer l\'image', details: error.message })
+      body: JSON.stringify({ error: 'Impossible de récupérer l\'image' })
     };
   }
 };

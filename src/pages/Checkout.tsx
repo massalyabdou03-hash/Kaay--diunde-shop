@@ -4,6 +4,7 @@ import { MessageCircle, Minus, Plus, Trash2, X, Loader2 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { DeliveryZone, OrderFormData } from '../types';
 import { WHATSAPP_NUMBER } from '../constants';
+import { usePageMeta } from '../utils/usePageMeta';
 
 const DELIVERY_FEES: Record<DeliveryZone, number> = {
   [DeliveryZone.DAKAR]:   2000,
@@ -13,23 +14,34 @@ const DELIVERY_FEES: Record<DeliveryZone, number> = {
   [DeliveryZone.OTHER]:   5000,
 };
 
-const PAYMENT_METHODS = ['Paiement à la livraison (Cash)', 'Wave', 'Orange Money'];
+const PAYMENT_METHODS = ['Cash à la livraison', 'Wave à la livraison', 'Orange Money à la livraison'];
 
 // Préfixes valides pour les numéros sénégalais
 const SENEGAL_PREFIXES = ['77', '76', '78', '75', '70'];
 
 // Vérifie si un numéro sénégalais est valide (9 chiffres, bon préfixe)
 function isValidSenegalPhone(phone: string): boolean {
-  const digits = phone.replace(/\s+/g, '');
+  let digits = phone.replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('221')) digits = digits.slice(3);
   if (digits.length !== 9) return false;
   return SENEGAL_PREFIXES.some(prefix => digits.startsWith(prefix));
 }
 
-// Génère un numéro de commande unique
-function generateOrderId() {
+// Numéro de secours, utilisé UNIQUEMENT si le serveur est injoignable.
+// En temps normal, le numéro de commande est celui généré par le serveur.
+function generateFallbackOrderId() {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
   return `KD-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+}
+
+interface ServerOrderItem { id: string; name: string; quantity: number; unitPrice: number; }
+interface ServerOrderResponse {
+  numeroCommande: string;
+  subtotal: number;
+  deliveryFee: number;
+  total: number;
+  items: ServerOrderItem[];
 }
 
 // Type pour les erreurs de champs
@@ -41,10 +53,11 @@ interface FormErrors {
 }
 
 export default function Checkout() {
+  usePageMeta({ title: 'Finaliser la commande | Kaay Diunde', noindex: true });
   const navigate = useNavigate();
   const { items, updateQuantity, removeFromCart, clearCart } = useCart();
   const [submitting, setSubmitting] = useState(false);
-  const [verifying, setVerifying] = useState(false);
+  const [orderError, setOrderError] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [form, setForm] = useState<OrderFormData & { paymentMethod: string }>({
@@ -109,23 +122,69 @@ export default function Checkout() {
     setShowConfirmModal(true);
   };
 
-  // Étape 2 : Envoyer la commande vers WhatsApp après confirmation
+  // Étape 2 : enregistrer la commande sur le serveur, puis ouvrir WhatsApp
   const handleWhatsApp = async () => {
     setShowConfirmModal(false);
-    setVerifying(true);
+    setOrderError('');
+    setSubmitting(true);
 
-    // Petit délai pour afficher "Vérification en cours..."
-    await new Promise(resolve => setTimeout(resolve, 1200));
+    // La fenêtre WhatsApp est ouverte tout de suite, pendant le clic du client :
+    // les navigateurs bloquent les fenêtres ouvertes après une attente réseau.
+    const popup = window.open('', '_blank');
+    const closePopup = () => { if (popup && !popup.closed) popup.close(); };
+
+    let orderId = '';
+    let finalSubtotal = subtotal;
+    let finalDeliveryFee = deliveryFee;
+    let finalTotal = total;
+    let lines = items.map(i => ({ name: i.name, quantity: i.quantity, unitPrice: i.price }));
+
+    try {
+      // Le serveur ne reçoit que les produits et quantités : prix, livraison et total
+      // sont recalculés côté serveur à partir de la base de données.
+      const res = await fetch('/.netlify/functions/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName:    form.customerName,
+          customerPhone:   form.customerPhone,
+          deliveryAddress: form.deliveryAddress,
+          deliveryZone:    form.deliveryZone,
+          paymentMethod:   form.paymentMethod,
+          items:           items.map(i => ({ id: i.id, quantity: i.quantity })),
+        }),
+      });
+
+      if (res.ok) {
+        const data: ServerOrderResponse = await res.json();
+        orderId          = data.numeroCommande;
+        finalSubtotal    = data.subtotal;
+        finalDeliveryFee = data.deliveryFee;
+        finalTotal       = data.total;
+        if (Array.isArray(data.items) && data.items.length > 0) lines = data.items;
+      } else if (res.status >= 400 && res.status < 500) {
+        // Commande refusée (stock insuffisant, champ invalide…) : on l'explique au client
+        const data = await res.json().catch(() => ({}));
+        setOrderError(data.error || 'Votre commande n\'a pas pu être validée. Vérifiez votre panier.');
+        closePopup();
+        setSubmitting(false);
+        return;
+      } else {
+        throw new Error(`create-order ${res.status}`);
+      }
+    } catch (err) {
+      // Serveur ou réseau indisponible : la commande reste possible par WhatsApp
+      console.error('Erreur enregistrement commande:', err);
+      orderId = generateFallbackOrderId();
+    }
 
     const now = new Date();
-    const orderId = generateOrderId();
     const date = now.toLocaleDateString('fr-SN', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const time = now.toLocaleTimeString('fr-SN', { hour: '2-digit', minute: '2-digit' });
-
     const sep = '━━━━━━━━━━━━━━━━━━━━━━';
 
-    const orderItems = items.map(i =>
-      `  - ${i.name} x${i.quantity} = ${(i.price * i.quantity).toLocaleString('fr-SN')} FCFA`
+    const orderItems = lines.map(l =>
+      `  - ${l.name} x${l.quantity} = ${(l.unitPrice * l.quantity).toLocaleString('fr-SN')} FCFA`
     ).join('\n');
 
     const message = [
@@ -153,10 +212,10 @@ export default function Checkout() {
       sep,
       '💰 *RECAPITULATIF*',
       '',
-      `  Sous-total : ${subtotal.toLocaleString('fr-SN')} FCFA`,
-      `  Livraison : ${deliveryFee.toLocaleString('fr-SN')} FCFA`,
+      `  Sous-total : ${finalSubtotal.toLocaleString('fr-SN')} FCFA`,
+      `  Livraison : ${finalDeliveryFee.toLocaleString('fr-SN')} FCFA`,
       sep,
-      `💵 *TOTAL A PAYER : ${total.toLocaleString('fr-SN')} FCFA*`,
+      `💵 *TOTAL A PAYER : ${finalTotal.toLocaleString('fr-SN')} FCFA*`,
       sep,
       '',
       '✅ Merci pour votre confiance.',
@@ -165,42 +224,24 @@ export default function Checkout() {
 
     const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 
-    setVerifying(false);
-    setSubmitting(true);
-    try {
-      await fetch('/.netlify/functions/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerName:    form.customerName,
-          customerPhone:   form.customerPhone,
-          deliveryAddress: form.deliveryAddress,
-          deliveryZone:    form.deliveryZone,
-          paymentMethod:   form.paymentMethod,
-          items,
-          subtotal,
-          deliveryFee,
-          total,
-        }),
+    // Événement Google Analytics
+    if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+      window.gtag('event', 'click_whatsapp', {
+        event_category: 'conversion',
+        event_label: 'Commande WhatsApp',
+        value: finalTotal,
       });
-    } catch (err) {
-      console.error('Erreur enregistrement commande:', err);
-    } finally {
-      setSubmitting(false);
-      setVerifying(false);
+    }
 
-      // Événement Google Analytics
-      if (typeof window !== "undefined" && typeof window.gtag === "function") {
-        window.gtag("event", "click_whatsapp", {
-          event_category: "conversion",
-          event_label: "Commande WhatsApp",
-          value: total,
-        });
-      }
+    clearCart();
+    setSubmitting(false);
 
-      clearCart();
-      window.open(waUrl, '_blank');
+    if (popup && !popup.closed) {
+      popup.location.href = waUrl;
       navigate('/');
+    } else {
+      // Fenêtre bloquée : on utilise l'onglet courant (une navigation n'est jamais bloquée)
+      window.location.href = waUrl;
     }
   };
 
@@ -303,17 +344,16 @@ export default function Checkout() {
               <div className="summary-row total"><span>Total</span><span>{total.toLocaleString('fr-SN')} FCFA</span></div>
             </div>
 
+            {orderError && (
+              <p className="field-error" role="alert" style={{ marginBottom: 12 }}>{orderError}</p>
+            )}
+
             <button
               onClick={handleValidateOrder}
-              className={`btn-whatsapp ${verifying ? 'btn-whatsapp-verifying' : ''}`}
-              disabled={submitting || verifying}
+              className="btn-whatsapp"
+              disabled={submitting}
             >
-              {verifying ? (
-                <>
-                  <Loader2 size={20} className="spin-icon" />
-                  Vérification en cours...
-                </>
-              ) : submitting ? (
+              {submitting ? (
                 <>
                   <Loader2 size={20} className="spin-icon" />
                   Envoi en cours…

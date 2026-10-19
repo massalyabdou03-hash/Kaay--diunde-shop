@@ -2733,3 +2733,67 @@ button {
   }
 }
 
+
+/* ─── PIED DE PAGE ───────────────────────────────────── */
+.site-footer {
+  background: var(--navy);
+  color: var(--gray-200);
+  margin-top: 64px;
+  padding: 48px 0 0;
+}
+
+.site-footer-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1.4fr .8fr;
+  gap: 32px;
+  padding-bottom: 32px;
+}
+
+.site-footer-title {
+  font-family: 'Sora', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 14px;
+}
+
+.site-footer-text {
+  font-size: .9rem;
+  line-height: 1.6;
+  color: var(--gray-400);
+}
+
+.site-footer-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: .9rem;
+}
+
+.site-footer-list li,
+.site-footer-list a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--gray-400);
+  text-decoration: none;
+}
+
+.site-footer-list a:hover { color: var(--orange); }
+
+.site-footer-bottom {
+  border-top: 1px solid rgba(255,255,255,.1);
+  padding: 18px 24px 90px; /* marge basse : le bouton d'appel flottant ne masque pas le texte */
+  font-size: .8rem;
+  color: var(--gray-400);
+  text-align: center;
+}
+
+@media (max-width: 800px) {
+  .site-footer-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 520px) {
+  .site-footer-grid { grid-template-columns: 1fr; }
+}
