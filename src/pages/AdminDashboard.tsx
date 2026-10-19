@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, Package, DollarSign, AlertTriangle, Megaphone, Settings, Save, Eye, EyeOff, Upload, Image, X } from 'lucide-react';
 import { Product, ProductCategory } from '../types';
+import { adminFetch, getAdminToken } from '../utils/adminApi';
+import { decodeLegacyEntities } from '../utils/text';
+import { usePageMeta } from '../utils/usePageMeta';
 
 /* ─── Types pour la publicité flottante ─────────────── */
 interface FloatingAdForm {
@@ -35,6 +38,7 @@ const EMPTY_FORM: ProductForm = {
 };
 
 export default function AdminDashboard() {
+  usePageMeta({ title: 'Administration | Kaay Diunde', noindex: true });
   const navigate = useNavigate();
   const [products, setProducts]         = useState<Product[]>([]);
   const [loading, setLoading]           = useState(true);
@@ -57,7 +61,7 @@ export default function AdminDashboard() {
   const [imageUploading, setImageUploading] = useState(false);
 
   useEffect(() => {
-    if (sessionStorage.getItem('isAdmin') !== 'true') { navigate('/'); return; }
+    if (!getAdminToken()) { navigate('/'); return; }
     loadProducts();
     loadFloatingAdConfig();
   }, [navigate]);
@@ -66,13 +70,13 @@ export default function AdminDashboard() {
   const loadFloatingAdConfig = () => {
     setAdLoading(true);
     fetch('/.netlify/functions/get-floating-ad')
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error('get-floating-ad ' + r.status); return r.json(); })
       .then(data => {
         setAdForm({
           enabled: data.enabled || false,
-          title: data.title || '',
-          description: data.description || '',
-          button_text: data.button_text || '',
+          title: decodeLegacyEntities(data.title || ''),
+          description: decodeLegacyEntities(data.description || ''),
+          button_text: decodeLegacyEntities(data.button_text || ''),
           button_url: data.button_url || '',
           button_color: data.button_color || '#f97316',
           position: data.position || 'bottom-right',
@@ -119,7 +123,7 @@ export default function AdminDashboard() {
 
       setImageUploading(true);
       try {
-        const res = await fetch('/.netlify/functions/upload-ad-image', {
+        const res = await adminFetch('/.netlify/functions/upload-ad-image', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ image: dataUrl, filename: file.name })
@@ -152,7 +156,7 @@ export default function AdminDashboard() {
 
     setImageUploading(true);
     try {
-      const res = await fetch('/.netlify/functions/delete-ad-image', {
+      const res = await adminFetch('/.netlify/functions/delete-ad-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: '{}'
@@ -220,7 +224,7 @@ export default function AdminDashboard() {
     setAdSaving(true);
     setAdMessage('');
     try {
-      const res = await fetch('/.netlify/functions/save-floating-ad', {
+      const res = await adminFetch('/.netlify/functions/save-floating-ad', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(adForm)
@@ -242,8 +246,8 @@ export default function AdminDashboard() {
   const loadProducts = () => {
     setLoading(true);
     fetch('/.netlify/functions/get-products')
-      .then(r => r.json())
-      .then(data => { setProducts(data); setLoading(false); })
+      .then(r => { if (!r.ok) throw new Error('get-products ' + r.status); return r.json(); })
+      .then(data => { setProducts(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(err => { console.error(err); setLoading(false); });
   };
 
@@ -275,7 +279,7 @@ export default function AdminDashboard() {
       : '/.netlify/functions/add-product';
 
     try {
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
@@ -297,7 +301,7 @@ export default function AdminDashboard() {
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Supprimer "${name}" ?`)) return;
     try {
-      const res = await fetch('/.netlify/functions/delete-product', {
+      const res = await adminFetch('/.netlify/functions/delete-product', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id })

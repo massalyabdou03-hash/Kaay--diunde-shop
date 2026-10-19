@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { X } from 'lucide-react';
+import { decodeLegacyEntities } from '../utils/text';
 
 /* ─── Types ─────────────────────────────────────────── */
 interface FloatingAdConfig {
@@ -25,13 +26,6 @@ const DURATION_MS: Record<string, number> = {
   '24h': 24 * 60 * 60 * 1000,
   '7d':  7 * 24 * 60 * 60 * 1000,
 };
-
-/* ─── Sécurité : échapper le texte pour éviter XSS ── */
-function escapeHtml(str: string): string {
-  const div = document.createElement('div');
-  div.appendChild(document.createTextNode(str));
-  return div.innerHTML;
-}
 
 /* ─── Validation URL (interne + externe) ─────────────── */
 function isValidUrl(str: string): boolean {
@@ -148,13 +142,13 @@ export default function FloatingAd() {
       {/* Contenu */}
       {config.title && (
         <h3 className="floating-ad__title">
-          {escapeHtml(config.title)}
+          {decodeLegacyEntities(config.title)}
         </h3>
       )}
 
       {config.description && (
         <p className="floating-ad__description">
-          {escapeHtml(config.description)}
+          {decodeLegacyEntities(config.description)}
         </p>
       )}
 
@@ -167,7 +161,7 @@ export default function FloatingAd() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            {escapeHtml(config.button_text)}
+            {decodeLegacyEntities(config.button_text)}
           </a>
         ) : (
           <Link
@@ -175,7 +169,7 @@ export default function FloatingAd() {
             className="floating-ad__button"
             style={{ backgroundColor: config.button_color || '#f97316' }}
           >
-            {escapeHtml(config.button_text)}
+            {decodeLegacyEntities(config.button_text)}
           </Link>
         )
       )}

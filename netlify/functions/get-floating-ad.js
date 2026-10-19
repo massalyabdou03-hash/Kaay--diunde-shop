@@ -100,7 +100,7 @@ exports.handler = async function(event) {
     return {
       statusCode: 500,
       headers: HEADERS,
-      body: JSON.stringify({ error: 'Impossible de récupérer la config publicité', details: error.message })
+      body: JSON.stringify({ error: 'Impossible de récupérer la config publicité' })
     };
   }
 };

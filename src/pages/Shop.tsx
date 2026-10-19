@@ -1,12 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ShoppingCart, Check, ShoppingBag, RotateCcw, SearchX, Package, Truck, MessageCircle } from 'lucide-react';
+import { ShoppingCart, Check, ShoppingBag, RotateCcw, SearchX, Package, MessageCircle } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { Product, ProductCategory } from '../types';
 import { smartSearch, getSimilarProducts } from '../utils/searchEngine';
 import { WHATSAPP_NUMBER } from '../constants';
+import { fetchProducts } from '../utils/productsApi';
+import { usePageMeta } from '../utils/usePageMeta';
 
-const CATEGORIES: Array<ProductCategory | 'all'> = ['all','electronics','fashion','accessories','home','sports','books','ramadan'];
+const ALL_CATEGORIES: ProductCategory[] = ['electronics','fashion','accessories','home','sports','books','ramadan'];
 const LABELS: Record<ProductCategory | 'all', string> = {
   all: 'Tous', electronics: 'Électronique', fashion: 'Mode',
   accessories: 'Accessoires', home: 'Maison', sports: 'Sport', books: 'Livres',
@@ -24,13 +26,13 @@ const SORT_LABELS: Record<SortOption, string> = {
 export default function Shop() {
   const [products, setProducts]         = useState<Product[]>([]);
   const [loading, setLoading]           = useState(true);
+  const [loadError, setLoadError]       = useState(false);
   const [category, setCategory]         = useState<ProductCategory | 'all'>('all');
   const [added, setAdded]               = useState<Set<string>>(new Set());
   const [sortBy, setSortBy]             = useState<SortOption>('default');
   const [priceMin, setPriceMin]         = useState('');
   const [priceMax, setPriceMax]         = useState('');
   const [inStockOnly, setInStockOnly]   = useState(false);
-  const [fastDelivery, setFastDelivery] = useState(false);
   const [priceSlider, setPriceSlider]   = useState(0);
   const { addToCart } = useCart();
   const navigate = useNavigate();
@@ -38,14 +40,31 @@ export default function Shop() {
 
   // Lecture des paramètres de recherche depuis l'URL
   const searchQuery = searchParams.get('q') || '';
-  const catFromUrl = searchParams.get('cat') || '';
+  // « cat » (utilisé par le site) ou « category » (anciens liens du sitemap)
+  const catFromUrl = searchParams.get('cat') || searchParams.get('category') || '';
 
-  // Appliquer la catégorie depuis l'URL
+  usePageMeta({
+    title: category !== 'all'
+      ? `${LABELS[category].replace('🕌 ', '')} | Boutique Kaay Diunde`
+      : 'Boutique | Accessoires téléphone et plus | Kaay Diunde',
+    description: 'Tous les produits Kaay Diunde : accessoires de téléphone, smartphones et bons plans. Livraison partout au Sénégal, paiement à la livraison.',
+    path: '/shop',
+    noindex: searchQuery.trim() !== '', // les pages de résultats de recherche ne sont pas indexées
+  });
+
+  // Appliquer la catégorie depuis l'URL (« accessoires » = ancien nom français)
   useEffect(() => {
-    if (catFromUrl && CATEGORIES.includes(catFromUrl as ProductCategory)) {
-      setCategory(catFromUrl as ProductCategory);
+    const wanted = catFromUrl === 'accessoires' ? 'accessories' : catFromUrl;
+    if (wanted && ALL_CATEGORIES.includes(wanted as ProductCategory)) {
+      setCategory(wanted as ProductCategory);
     }
   }, [catFromUrl]);
+
+  // Seules les catégories qui contiennent des produits sont proposées
+  const categories = useMemo<Array<ProductCategory | 'all'>>(
+    () => ['all', ...ALL_CATEGORIES.filter(c => products.some(p => p.category === c))],
+    [products]
+  );
 
   // Calculer le prix max des produits pour le slider
   const maxPrice = useMemo(() => {
@@ -54,10 +73,9 @@ export default function Shop() {
   }, [products]);
 
   useEffect(() => {
-    fetch('/.netlify/functions/get-products')
-      .then(r => r.json())
+    fetchProducts()
       .then(data => { setProducts(data); setLoading(false); })
-      .catch(err => { console.error('Erreur chargement produits:', err); setLoading(false); });
+      .catch(err => { console.error('Erreur chargement produits:', err); setLoadError(true); setLoading(false); });
   }, []);
 
   const handleAdd = (product: Product) => {
@@ -79,7 +97,6 @@ export default function Shop() {
     setPriceMin('');
     setPriceMax('');
     setInStockOnly(false);
-    setFastDelivery(false);
     setPriceSlider(0);
   };
 
@@ -156,7 +173,7 @@ export default function Shop() {
     return [];
   }, [filtered.length, searchQuery, products]);
 
-  const hasActiveFilters = category !== 'all' || sortBy !== 'default' || priceMin || priceMax || inStockOnly || fastDelivery || priceSlider > 0;
+  const hasActiveFilters = category !== 'all' || sortBy !== 'default' || priceMin || priceMax || inStockOnly || priceSlider > 0;
 
   // Appliquer la correction
   const applyCorrection = () => {
@@ -205,13 +222,6 @@ export default function Shop() {
               <Package size={14} />
               En stock
             </button>
-            <button
-              className={`search-filter-chip ${fastDelivery ? 'active' : ''}`}
-              onClick={() => setFastDelivery(!fastDelivery)}
-            >
-              <Truck size={14} />
-              Livraison rapide
-            </button>
             {matchedCategory && category === 'all' && (
               <button
                 className="search-filter-chip"
@@ -225,7 +235,7 @@ export default function Shop() {
 
         {/* Filtres par catégorie */}
         <div className="filters">
-          {CATEGORIES.map(cat => (
+          {categories.map(cat => (
             <button
               key={cat}
               className={`filter-btn ${category === cat ? 'active' : ''}`}
@@ -367,7 +377,18 @@ export default function Shop() {
         )}
 
         {/* État vide intelligent */}
-        {filtered.length === 0 && !loading && (
+        {loadError && (
+          <div className="empty-results">
+            <div className="empty-results-icon"><SearchX size={36} /></div>
+            <h3>Impossible de charger les produits</h3>
+            <p>Vérifiez votre connexion puis réessayez.</p>
+            <button className="btn-reset-filters" onClick={() => window.location.reload()}>
+              Réessayer
+            </button>
+          </div>
+        )}
+
+        {filtered.length === 0 && !loading && !loadError && (
           <div className="empty-results">
             <div className="empty-results-icon">
               <SearchX size={36} />

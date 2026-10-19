@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { ShoppingCart, Shield, Store, X, Phone } from 'lucide-react';
 import { CartProvider, useCart } from './context/CartContext';
 import { useEffect } from 'react';
@@ -8,6 +8,10 @@ import Shop from './pages/Shop';
 import ProductDetail from './pages/ProductDetail';
 import Checkout from './pages/Checkout';
 import AdminDashboard from './pages/AdminDashboard';
+import NotFound from './pages/NotFound';
+import Footer from './components/Footer';
+import { PHONE_NUMBER, formatPhone } from './constants';
+import { adminLogin, clearAdminToken, getAdminToken } from './utils/adminApi';
 import SmartSearch from './components/SmartSearch';
 import FloatingAd from './components/FloatingAd';
 import './App.css';
@@ -42,30 +46,30 @@ function AppContent() {
   const [showCart, setShowCart]         = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassword, setAdminPassword]   = useState('');
-  const [isAdmin, setIsAdmin] = useState(
-    () => sessionStorage.getItem('isAdmin') === 'true'
-  );
+  const [loggingIn, setLoggingIn]       = useState(false);
+  const [isAdmin, setIsAdmin] = useState(() => getAdminToken() !== null);
 
-  const handleAdminLogin = () => {
-    const expected =
-      import.meta.env.VITE_ADMIN_PASSWORD ||
-      import.meta.env.VITE_ADMIN_SECRET  ||
-      'admin2024';
+  // Le mot de passe est vérifié par le serveur (fonction admin-login) :
+  // il n'est plus présent dans le code du site.
+  const handleAdminLogin = async () => {
+    if (!adminPassword || loggingIn) return;
+    setLoggingIn(true);
+    const result = await adminLogin(adminPassword);
+    setLoggingIn(false);
 
-    if (adminPassword === expected) {
+    if (result.ok) {
       setIsAdmin(true);
-      sessionStorage.setItem('isAdmin', 'true');
       setShowAdminLogin(false);
       setAdminPassword('');
       window.location.href = '/admin';
     } else {
-      alert('❌ Mot de passe incorrect');
+      alert('❌ ' + result.error);
     }
   };
 
   const handleAdminLogout = () => {
     setIsAdmin(false);
-    sessionStorage.removeItem('isAdmin');
+    clearAdminToken();
     window.location.href = '/';
   };
 
@@ -121,7 +125,12 @@ function AppContent() {
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/checkout"   element={<Checkout />} />
           <Route path="/admin"      element={<AdminDashboard />} />
+          {/* Anciennes URLs publiées dans le sitemap */}
+          <Route path="/boutique"   element={<Navigate to="/shop" replace />} />
+          <Route path="*"           element={<NotFound />} />
         </Routes>
+
+        <Footer />
 
         {/* ── Cart modal ── */}
         {showCart && (
@@ -180,8 +189,8 @@ function AppContent() {
                   autoFocus
                 />
               </div>
-              <button onClick={handleAdminLogin} className="btn-login">
-                Se connecter
+              <button onClick={handleAdminLogin} className="btn-login" disabled={loggingIn}>
+                {loggingIn ? 'Connexion…' : 'Se connecter'}
               </button>
             </div>
           </div>
@@ -191,9 +200,9 @@ function AppContent() {
         <FloatingAd />
 
         {/* ── Bouton flottant appel téléphonique ── */}
-        <a href="tel:+221762548030" className="floating-phone" aria-label="Appeler">
+        <a href={`tel:+${PHONE_NUMBER}`} className="floating-phone" aria-label="Appeler">
           <Phone size={24} />
-          <span className="floating-phone-text">762 548 030</span>
+          <span className="floating-phone-text">{formatPhone(PHONE_NUMBER)}</span>
         </a>
       </div>
     </Router>

@@ -1,23 +1,62 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ShoppingCart, ArrowLeft, Check } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ShoppingCart, ShoppingBag, ArrowLeft, Check } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { Product } from '../types';
+import { SITE_URL } from '../constants';
+import { fetchProduct } from '../utils/productsApi';
+import { usePageMeta } from '../utils/usePageMeta';
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [added, setAdded]     = useState(false);
   const { addToCart } = useCart();
 
   useEffect(() => {
     if (!id) return;
-    fetch(`/.netlify/functions/get-product?id=${id}`)
-      .then(r => r.json())
+    setLoading(true);
+    setLoadError(false);
+    fetchProduct(id)
       .then(data => { setProduct(data); setLoading(false); })
-      .catch(err => { console.error(err); setLoading(false); });
+      .catch(err => { console.error(err); setLoadError(true); setLoading(false); });
   }, [id]);
+
+  // Titre, description et données structurées « Product » (prix, disponibilité)
+  usePageMeta(
+    product
+      ? {
+          title: `${product.name} – ${product.price.toLocaleString('fr-SN')} FCFA | Kaay Diunde`,
+          description: product.description.slice(0, 155),
+          path: `/product/${product.id}`,
+          image: product.image,
+          jsonLd: {
+            '@context': 'https://schema.org',
+            '@type': 'Product',
+            name: product.name,
+            description: product.description,
+            image: [product.image],
+            sku: product.id,
+            offers: {
+              '@type': 'Offer',
+              url: `${SITE_URL}/product/${product.id}`,
+              priceCurrency: 'XOF',
+              price: product.price,
+              availability: product.stock > 0
+                ? 'https://schema.org/InStock'
+                : 'https://schema.org/OutOfStock',
+            },
+          },
+        }
+      : {
+          title: 'Produit | Kaay Diunde',
+          description: 'Fiche produit Kaay Diunde.',
+          noindex: !loading, // produit introuvable : ne pas indexer
+        }
+  );
 
   const handleAdd = () => {
     if (!product) return;
@@ -26,11 +65,21 @@ export default function ProductDetail() {
     setTimeout(() => setAdded(false), 2500);
   };
 
+  const handleOrderNow = () => {
+    if (!product) return;
+    addToCart(product);
+    navigate('/checkout');
+  };
+
   if (loading) return <div className="container"><div className="loading">Chargement…</div></div>;
   if (!product) return (
     <div className="container" style={{ paddingTop: 48 }}>
       <Link to="/shop" className="btn-back"><ArrowLeft size={18} /> Retour</Link>
-      <p style={{ color: '#94a3b8', marginTop: 24 }}>Produit introuvable.</p>
+      <p style={{ color: '#94a3b8', marginTop: 24 }}>
+        {loadError
+          ? 'Impossible de charger ce produit pour le moment. Vérifiez votre connexion puis réessayez.'
+          : 'Produit introuvable.'}
+      </p>
     </div>
   );
 
@@ -68,6 +117,15 @@ export default function ProductDetail() {
             </div>
 
             <p className="product-description">{product.description}</p>
+
+            <button
+              onClick={handleOrderNow}
+              className="btn-order"
+              disabled={product.stock === 0}
+              style={{ marginBottom: 12 }}
+            >
+              <ShoppingBag size={20} /> <span>Commander maintenant</span>
+            </button>
 
             <button
               onClick={handleAdd}

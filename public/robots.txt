@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /checkout
+Disallow: /*?q=
+
+# Ne pas bloquer /.netlify/functions/ : Google en a besoin pour afficher les produits.
+
+Sitemap: https://kaay-diunde.site/sitemap.xml

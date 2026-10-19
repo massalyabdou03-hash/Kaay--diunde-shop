@@ -2,28 +2,41 @@
   publish = "dist"
   command = "npm run build"
 
+# ─── En-têtes de sécurité et de cache ─────────────────────────────────────
 [[headers]]
-  for = "/sitemap.xml"
+  for = "/*"
   [headers.values]
-    Content-Type = "application/xml"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "strict-origin-when-cross-origin"
 
+# Fichiers générés par Vite (nom avec empreinte) : cache longue durée
 [[headers]]
-  for = "/robots.txt"
+  for = "/assets/*"
   [headers.values]
-    Content-Type = "text/plain"
+    Cache-Control = "public, max-age=31536000, immutable"
 
+# ─── Sitemap dynamique (accueil, boutique, tous les produits) ─────────────
 [[redirects]]
   from = "/sitemap.xml"
-  to = "/sitemap.xml"
+  to = "/.netlify/functions/sitemap"
   status = 200
+  force = true
+
+# ─── Anciennes URLs « /boutique » (publiées par erreur dans l'ancien sitemap) ──
+[[redirects]]
+  from = "/boutique"
+  to = "/shop"
+  status = 301
   force = true
 
 [[redirects]]
-  from = "/robots.txt"
-  to = "/robots.txt"
-  status = 200
+  from = "/boutique/*"
+  to = "/shop"
+  status = 301
   force = true
 
+# ─── Application monopage : toute autre URL est gérée par React ───────────
 [[redirects]]
   from = "/*"
   to = "/index.html"
